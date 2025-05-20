@@ -1,42 +1,62 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useSegments, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
-
+import { useEffect } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 
 function RootLayoutNav() {
-  const { user, isLoading } = useAuth();
-  const colorScheme = useColorScheme();
+    const { user, isLoading } = useAuth();
+    const colorScheme = useColorScheme();
+    const router = useRouter();
+    const segments = useSegments();
+  
+    useEffect(() => {
+      if (isLoading) return;
 
-  if (isLoading) {
-    return null;
-  }
-
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        {user ? (
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        ) : (
+      if (user && segments[0] !== '(app)') {
+        router.replace('/(app)');
+      } else if (!user && segments[0] !== '(auth)') {
+        router.replace('/(auth)');
+      }
+    }, [user, segments, isLoading]);
+  
+    if (isLoading) {
+      return null;
+    }
+  
+    return (
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(app)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        )}
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+          <Stack.Screen name="+not-found" />
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    );
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
+  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
+  useEffect(() => {
+    if (error) throw error;
+  }, [error]);
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
   if (!loaded) {
-    // Async font loading only occurs in development.
     return null;
   }
 

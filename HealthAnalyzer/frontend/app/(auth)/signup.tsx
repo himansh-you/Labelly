@@ -9,7 +9,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
 
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -28,11 +28,20 @@ export default function SignupScreen() {
       if (error) {
         Alert.alert('Error', error.message || 'Failed to create account');
       } else {
-        Alert.alert(
-          'Account Created',
-          'Your account has been created successfully',
-          [{ text: 'OK', onPress: () => { router.navigate('/(auth)/login'); } }]
-        );
+        console.log('Account created successfully');
+        // After successful signup, automatically sign in the user
+        const signInResult = await signIn(email, password);
+        if (signInResult.error) {
+          console.log('Auto sign-in failed:', signInResult.error);
+          Alert.alert(
+            'Account Created',
+            'Your account has been created successfully. Please log in.',
+            [{ text: 'OK', onPress: () => { router.navigate('/(auth)/login'); } }]
+          );
+        } else {
+          // User is now signed in - navigation should happen automatically
+          console.log('Auto sign-in successful');
+        }
       }
     } catch (err) {
       console.error(err);
@@ -42,8 +51,17 @@ export default function SignupScreen() {
     }
   };
 
+  const navigateToLogin = () => {
+    router.push('/(auth)/login');
+  };
+
   return (
     <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Create Account</Text>
+        <Text style={styles.subHeader}>Sign up to get started</Text>
+      </View>
+
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Email</Text>
         <TextInput
@@ -89,6 +107,13 @@ export default function SignupScreen() {
           <Text style={styles.buttonText}>Create Account</Text>
         )}
       </TouchableOpacity>
+
+      <View style={styles.loginContainer}>
+        <Text style={styles.loginText}>Already have an account?</Text>
+        <TouchableOpacity onPress={navigateToLogin}>
+          <Text style={styles.loginLink}>Log In</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -98,6 +123,19 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+    justifyContent: 'center',
+  },
+  headerContainer: {
+    marginBottom: 40,
+  },
+  header: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  subHeader: {
+    fontSize: 16,
+    color: '#666',
   },
   inputContainer: {
     marginBottom: 20,
@@ -122,12 +160,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primaryButton: {
-    backgroundColor: '#4285F4',
+    backgroundColor: '#4CAF50',
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  loginText: {
+    color: '#666',
+    marginRight: 5,
+  },
+  loginLink: {
+    color: '#4CAF50',
+    fontWeight: '500',
   },
 }); 

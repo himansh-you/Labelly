@@ -74,4 +74,66 @@ export const healthCheck = async (): Promise<boolean> => {
     console.error('Health check failed:', error);
     return false;
   }
+};
+
+// Function to analyze an image with Perplexity Sonar API
+export const analyzeImage = async (imageUri: string): Promise<any> => {
+  try {
+    // Create a FormData object to send the image
+    const formData = new FormData();
+    
+    // Append the image file to the FormData object
+    formData.append('image', {
+      uri: imageUri,
+      name: 'image.jpg',
+      type: 'image/jpeg',
+    } as any);
+
+    const response = await fetch('YOUR_BACKEND_ENDPOINT/analyze', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error analyzing image:', error);
+    throw error;
+  }
+};
+
+// Function to mock Perplexity Sonar API response for development
+export const mockAnalyzeImage = async (): Promise<any> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // Return mock data
+  return {
+    healthScore: 'Moderate',
+    summary: 'This product contains some potentially concerning ingredients.',
+    insights: [
+      'Contains artificial preservatives (sodium benzoate)',
+      'Contains added sugars (high fructose corn syrup)',
+      'No artificial colors detected',
+    ],
+    warnings: [
+      {
+        ingredient: 'Sodium Benzoate',
+        level: 'moderate',
+        description: 'A preservative that may cause allergic reactions in some individuals.',
+      },
+      {
+        ingredient: 'High Fructose Corn Syrup',
+        level: 'high',
+        description: 'A sweetener linked to obesity and metabolic disorders when consumed in excess.',
+      },
+    ],
+  };
 }; 

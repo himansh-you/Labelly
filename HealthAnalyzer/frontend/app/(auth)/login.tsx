@@ -8,7 +8,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, user } = useAuth();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -21,6 +21,10 @@ export default function LoginScreen() {
       const { error } = await signIn(email, password);
       if (error) {
         Alert.alert('Error', error.message || 'Failed to sign in');
+      } else {
+        console.log('Login successful');
+        console.log(user);
+        // Navigation should happen automatically from RootLayoutNav once user state changes
       }
     } catch (err) {
       console.error(err);
@@ -30,8 +34,17 @@ export default function LoginScreen() {
     }
   };
 
+  const navigateToSignup = () => {
+    router.push('/(auth)/signup');
+  };
+
   return (
     <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Welcome Back</Text>
+        <Text style={styles.subHeader}>Log in to continue</Text>
+      </View>
+
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Email</Text>
         <TextInput
@@ -66,6 +79,13 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>Log In</Text>
         )}
       </TouchableOpacity>
+
+      <View style={styles.signupContainer}>
+        <Text style={styles.signupText}>Don't have an account?</Text>
+        <TouchableOpacity onPress={navigateToSignup}>
+          <Text style={styles.signupLink}>Sign Up</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -75,6 +95,19 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+    justifyContent: 'center',
+  },
+  headerContainer: {
+    marginBottom: 40,
+  },
+  header: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  subHeader: {
+    fontSize: 16,
+    color: '#666',
   },
   inputContainer: {
     marginBottom: 20,
@@ -99,12 +132,25 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   primaryButton: {
-    backgroundColor: '#4285F4',
+    backgroundColor: '#4CAF50', // Changed to match the app's primary color
   },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  signupContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  signupText: {
+    color: '#666',
+    marginRight: 5,
+  },
+  signupLink: {
+    color: '#4CAF50',
+    fontWeight: '500',
   },
 }); 
