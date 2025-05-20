@@ -4,7 +4,10 @@ import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from supabase import create_client, Client
+import firebase_admin
+from firebase_admin import credentials, firestore, auth
+
+
 
 # Load environment variables
 load_dotenv(dotenv_path='env.example')
@@ -13,17 +16,30 @@ load_dotenv(dotenv_path='env.example')
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Supabase client
-supabase_url = os.environ.get("SUPABASE_URL")
-supabase_key = os.environ.get("SUPABASE_KEY")
-print(supabase_url)
-print(supabase_key)
-supabase: Client = create_client(supabase_url, supabase_key)
+# Initialize Firebase Admin SDK with a service account
+# You'll need to download the service account JSON from Firebase console
+service_account_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_PATH")
+cred = credentials.Certificate(service_account_path)
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Firebase configuration
+firebase_config = {
+    "apiKey": os.environ.get("FIREBASE_API_KEY"),
+    "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN"),
+    "projectId": os.environ.get("FIREBASE_PROJECT_ID"),
+    "storageBucket": os.environ.get("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": os.environ.get("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": os.environ.get("FIREBASE_APP_ID")
+}
+
+user = auth.get_user_by_email("user2@gmail.com")
+print('Successfully fetched user data: {0}'.format(user.uid))
 
 # Initialize Perplexity API key
 perplexity_api_key = os.environ.get("PERPLEXITY_API_KEY")
 
-@app.route('/health', methods=['GET'])
+@app.route('/', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
@@ -38,9 +54,9 @@ def analyze_ingredients():
     token = auth_header.split(' ')[1]
     
     try:
-        # Verify token with Supabase (this is simplified, proper JWT verification needed)
-        user_response = supabase.auth.get_user(token)
-        user_id = user_response.user.id
+        # Verify token with Firebase
+        user_info = firebase_auth.get_account_info(token)
+        user_id = user_info['users'][0]['localId']
     except Exception as e:
         return jsonify({"error": f"Authentication error: {str(e)}"}), 401
     
@@ -113,15 +129,15 @@ def analyze_ingredients():
         response = requests.post(url, headers=headers, json=payload)
         perplexity_data = response.json()
         
-        # Store scan in Supabase
+        # Store scan in Firestore
         scan_data = {
             "user_id": user_id,
             "analysis_result": perplexity_data,
-            "timestamp": "now()"
+            "timestamp": firestore.SERVER_TIMESTAMP
         }
         
-        # Insert scan data into Supabase
-        supabase.table("scans").insert(scan_data).execute()
+        # Insert scan data into Firestore
+        db.collection("scans").add(scan_data)
         
         # Return the analysis to the client
         return jsonify({
@@ -143,17 +159,25 @@ def get_user_scans():
     token = auth_header.split(' ')[1]
     
     try:
-        # Verify token with Supabase
-        user_response = supabase.auth.get_user(token)
-        user_id = user_response.user.id
+        # Verify token with Firebase
+        user_info = firebase_auth.get_account_info(token)
+        user_id = user_info['users'][0]['localId']
         
-        # Get user scans from Supabase
-        scans_response = supabase.table("scans").select("*").eq("user_id", user_id).order("timestamp", desc=True).execute()
+        # Get user scans from Firestore
+        scans_ref = db.collection("scans").where("user_id", "==", user_id).order_by("timestamp", direction=firestore.Query.DESCENDING)
+        scans = scans_ref.stream()
         
-        return jsonify({"scans": scans_response.data}), 200
+        # Convert to list of dictionaries
+        scans_data = []
+        for scan in scans:
+            scan_dict = scan.to_dict()
+            scan_dict["id"] = scan.id  # Add document ID
+            scans_data.append(scan_dict)
+        
+        return jsonify({"scans": scans_data}), 200
     
     except Exception as e:
         return jsonify({"error": f"Error retrieving scans: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))     
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
