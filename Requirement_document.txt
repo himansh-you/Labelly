@@ -1,0 +1,141 @@
+Labelly : A React Native Ingredients Health Analysis App – Requirements Document
+
+---
+
+## 1. App Scope and Functionality
+
+**1.1 Supported Product Types**
+
+* All packaged products (food, cosmetics, supplements, etc.)
+
+**1.2 Core MVP Features**
+
+* **Photo-based analysis**:
+
+  * Users can point their device camera at an ingredients label and submit the image directly to Perplexity’s Sonar API (no OCR step in MVP).
+* **Sonar API integration**:
+
+  * Use the Sonar model (non-pro, non-reasoning) to analyze the full image and generate a summary of ingredient healthiness.
+* **Summary output (format TBD)**:
+
+  * Potential formats: health score (Healthy/Moderate/Unhealthy), bullet-point insights, warnings about additives/allergens.
+
+**1.3 Future Enhancements (Post-MVP)**
+
+* OCR-based raw text extraction for cost optimization.
+* Persistent scan history: save past scans locally or in the cloud.
+* Favorites: mark and revisit preferred products.
+* Sharing: share analysis results via social or messaging.
+
+---
+
+## 2. AI / Sonar API Integration
+
+**2.1 API Access & Model**
+
+* Registered under hackathon program, use of Sonar model approved.
+
+**2.2 API Payload**
+
+* MVP: full image upload to Sonar API.
+* Future: option to send OCR-extracted text if needed.
+
+**2.3 Expected Response**
+
+* App to parse Sonar API’s JSON into a user-friendly summary.
+* Decision on format (score, bullet points, warnings) to be finalized during UI design.
+
+---
+
+## 3. Technology Stack
+
+**3.1 Frontend**
+
+* React Native with Expo CLI.
+* React Navigation for in-app routing.
+
+**3.2 Backend & Services**
+
+* Flask server (Python) hosted on a suitable cloud platform.
+* **Firebase for:**
+
+  * **Authentication** (email/password, Google sign-in, etc.) via Firebase Authentication.
+  * **Database**: Firestore (for scan logs, user preferences).
+  * **Storage**: Firebase Cloud Storage (optional image/result archiving).
+
+**3.3 Authentication & User Management**
+
+* Social/email login via Firebase Authentication.
+* Anonymous use not supported in MVP.
+
+**3.4 Image Hosting & Storage**
+
+* Firebase Cloud Storage for image archival (optional).
+* Metadata and scan logs stored in Firestore.
+
+**3.5 Third-Party Integrations**
+
+* Perplexity Sonar API for analysis.
+
+---
+
+## 4. Target Platforms
+
+* Android (initial MVP).
+* iOS support slated for later release.
+* React Native Web support to be evaluated post-MVP.
+
+---
+
+## 5. Testing & CI/CD
+
+**5.1 Testing Strategy**
+
+* Unit testing: Jest for React Native components and utility functions.
+* E2E testing: TBD (consider Detox post-MVP).
+
+**5.2 Continuous Integration/Deployment**
+
+* GitHub Actions workflow:
+
+  * Linting, type checking (if TypeScript used), and test execution on PRs.
+  * Expo build and artifact upload on main branch merge.
+
+---
+
+## 6. Deployment & Release
+
+* Hackathon-focused MVP: no App Store or Play Store submission.
+* Distribution via Expo QA builds or TestFlight (iOS later).
+* No in-app purchases in MVP.
+
+---
+
+## 7. UX/UI & Design Guidelines
+
+**7.1 Design Inspiration**
+
+* Similar user experience to Yuka app or cal.ai:
+
+  * Clean, minimal interface.
+  * Clear call-to-action button for "Scan Ingredients".
+
+**7.2 Wireframes & Mockups**
+
+* To be created using Figma or equivalent.
+* Key screens:
+
+  1. Welcome/Login
+  2. Scan / Capture Screen
+  3. Analysis Result Summary
+  4. (Future) History / Favorites
+
+---
+
+### Appendix: Open Questions & To-Dos
+
+* Finalize summary format with UX team.
+* Establish API error handling and retry logic.
+* Define storage retention policies for images and logs.
+* Plan for iOS build and code signing.
+* Develop basic wireframes before UI development.
