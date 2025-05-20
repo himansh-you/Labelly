@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 
@@ -9,7 +8,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -28,15 +27,6 @@ export default function LoginScreen() {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to sign in with Google');
     }
   };
 
@@ -76,20 +66,6 @@ export default function LoginScreen() {
           <Text style={styles.buttonText}>Log In</Text>
         )}
       </TouchableOpacity>
-
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.button, styles.googleButton]}
-        onPress={handleGoogleSignIn}
-      >
-        <FontAwesome name="google" size={20} color="#fff" style={styles.googleIcon} />
-        <Text style={styles.buttonText}>Continue with Google</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -125,30 +101,10 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#4285F4',
   },
-  googleButton: {
-    backgroundColor: '#DB4437',
-  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  googleIcon: {
-    marginRight: 10,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e0e0e0',
-  },
-  dividerText: {
-    color: '#888',
-    paddingHorizontal: 10,
   },
 }); 

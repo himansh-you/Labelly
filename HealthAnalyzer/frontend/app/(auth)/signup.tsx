@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 
@@ -10,7 +9,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp } = useAuth();
 
   const handleSignUp = async () => {
     if (!email || !password || !confirmPassword) {
@@ -40,15 +39,6 @@ export default function SignupScreen() {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to sign in with Google');
     }
   };
 
@@ -99,20 +89,6 @@ export default function SignupScreen() {
           <Text style={styles.buttonText}>Create Account</Text>
         )}
       </TouchableOpacity>
-
-      <View style={styles.divider}>
-        <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
-        <View style={styles.dividerLine} />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.button, styles.googleButton]}
-        onPress={handleGoogleSignIn}
-      >
-        <FontAwesome name="google" size={20} color="#fff" style={styles.googleIcon} />
-        <Text style={styles.buttonText}>Continue with Google</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -148,30 +124,10 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#4285F4',
   },
-  googleButton: {
-    backgroundColor: '#DB4437',
-  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  googleIcon: {
-    marginRight: 10,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e0e0e0',
-  },
-  dividerText: {
-    color: '#888',
-    paddingHorizontal: 10,
   },
 }); 

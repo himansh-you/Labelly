@@ -1,4 +1,4 @@
-Labelly : A React Native Ingredients Health Analysis App – Requirements Document
+React Native Ingredients Health Analysis App – Requirements Document
 
 ---
 
@@ -59,13 +59,13 @@ Labelly : A React Native Ingredients Health Analysis App – Requirements Docume
 * Flask server (Python) hosted on a suitable cloud platform.
 * **Firebase for:**
 
-  * **Authentication** (email/password, Google sign-in, etc.) via Firebase Authentication.
+  * **Authentication** (email/password only) via Firebase Authentication.
   * **Database**: Firestore (for scan logs, user preferences).
   * **Storage**: Firebase Cloud Storage (optional image/result archiving).
 
 **3.3 Authentication & User Management**
 
-* Social/email login via Firebase Authentication.
+* Email/password login via Firebase Authentication.
 * Anonymous use not supported in MVP.
 
 **3.4 Image Hosting & Storage**

@@ -4,19 +4,15 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut as firebaseSignOut, 
-  onAuthStateChanged,
-  signInWithRedirect,
-  getRedirectResult,
-  GoogleAuthProvider
+  onAuthStateChanged
 } from 'firebase/auth';
-import { auth, googleProvider } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 
 type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any | null }>;
   signUp: (email: string, password: string) => Promise<{ error: any | null }>;
-  signInWithGoogle: () => Promise<{ error: any | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -31,27 +27,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser);
       setIsLoading(false);
     });
-
-    // Handle the redirect result when component mounts
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result) {
-          // This gives you a Google Access Token
-          const credential = GoogleAuthProvider.credentialFromResult(result);
-          const token = credential?.accessToken;
-          
-          // User is already set by onAuthStateChanged
-        }
-      })
-      .catch((error) => {
-        // Handle errors here
-        const errorCode = error.code;
-        const errorMessage = error.message;
-        const email = error.customData?.email;
-        const credential = GoogleAuthProvider.credentialFromError(error);
-        
-        console.error('Redirect result error:', errorCode, errorMessage);
-      });
 
     return () => unsubscribe();
   }, []);
@@ -74,22 +49,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signInWithGoogle = async () => {
-    try {
-      await signInWithRedirect(auth, googleProvider);
-      return { error: null };
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      return { error };
-    }
-  };
-
   const signOut = async () => {
     await firebaseSignOut(auth);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
