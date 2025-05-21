@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import CameraView from '@/components/CameraView';
-import { mockAnalyzeImage } from '@/lib/api'; // Replace with real API in production
+import { analyzeIngredients } from '@/lib/api'; // Import the real API function
 
 interface CapturedImage {
   uri: string;
@@ -56,32 +56,28 @@ export default function ScanScreen() {
     try {
       setIsAnalyzing(true);
       
-      // In a real implementation, send the image to backend/API
-      // For mockup purposes, use a mock function that returns predefined data
-      const analysisResult = await mockAnalyzeImage();
+      // Use the analyzeIngredients function from API
+      const analysisResult = await analyzeIngredients(imageUri);
       
-      // Navigate to results with the analysis data
-      // Note: There seems to be a type compatibility issue with the router navigation
-      // For this implementation, we'll use an alert instead
-      Alert.alert(
-        'Analysis Complete',
-        'The ingredients have been analyzed successfully.',
-        [
-          {
-            text: 'View Results',
-            onPress: () => {
-              // In a production app, we would navigate to the results screen
-              console.log('Would navigate to results with:', {
-                result: analysisResult,
-                imageUri
-              });
-            }
-          }
-        ]
-      );
+      // Navigate to results screen with the analysis data
+      router.push({
+        pathname: '/(app)/result',
+        params: {
+          result: JSON.stringify(analysisResult),
+          imageUri: imageUri
+        }
+      });
+      
     } catch (error) {
       console.error('Error analyzing image:', error);
-      Alert.alert('Error', 'Failed to analyze the image. Please try again.');
+      
+      // Display a more detailed error message if available
+      let errorMessage = 'Failed to analyze the image. Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsAnalyzing(false);
     }

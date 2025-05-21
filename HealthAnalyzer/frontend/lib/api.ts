@@ -3,7 +3,8 @@ import { saveScan } from './firestore';
 import { uploadImage } from './storage';
 
 // Base URL for API calls
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://10.0.2.2:5000'; // For Android emulator
+// Use 'http://localhost:5000' for web or 'http://127.0.0.1:5000' for iOS simulator
 
 
 const getAuthToken = async (): Promise<string> => {
@@ -89,11 +90,14 @@ export const analyzeImage = async (imageUri: string): Promise<any> => {
       type: 'image/jpeg',
     } as any);
 
-    const response = await fetch('YOUR_BACKEND_ENDPOINT/analyze', {
+    const token = await getAuthToken();
+
+    const response = await fetch(`${API_BASE_URL}/api/analyze`, {
       method: 'POST',
       body: formData,
       headers: {
         'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}`,
       },
     });
 
