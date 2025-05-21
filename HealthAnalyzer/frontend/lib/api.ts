@@ -3,7 +3,7 @@ import { saveScan } from './firestore';
 import { uploadImage } from './storage';
 
 // Base URL for API calls
-const API_BASE_URL = 'http://10.0.2.2:5000'; // For Android emulator
+const API_BASE_URL = 'http://192.168.29.104:5000';
 // Use 'http://localhost:5000' for web or 'http://127.0.0.1:5000' for iOS simulator
 
 

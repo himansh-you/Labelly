@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 
+import traceback
 load_dotenv(dotenv_path="env.example")
 
 app = Flask(__name__)
@@ -120,6 +121,7 @@ def analyze_ingredients():
     try:
         # Call Perplexity API
         response = requests.post(url, headers=headers, json=payload)
+        print(response)
         perplexity_data = response.json()
 
         # Store scan in Firestore
@@ -146,6 +148,7 @@ def analyze_ingredients():
         )
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"error": f"Analysis error: {str(e)}"}), 500
 
 
