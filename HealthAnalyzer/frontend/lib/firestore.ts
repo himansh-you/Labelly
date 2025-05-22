@@ -1,13 +1,11 @@
 import { 
   collection, 
-  addDoc, 
   getDocs,
   query,
   where,
   orderBy,
   doc,
   getDoc,
-  updateDoc,
   Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -22,20 +20,6 @@ export interface ScanData {
   timestamp: Timestamp;
   id?: string;
 }
-
-
-export const saveScan = async (scanData: Omit<ScanData, 'timestamp'>) => {
-  try {
-    const docRef = await addDoc(collection(db, SCANS_COLLECTION), {
-      ...scanData,
-      timestamp: Timestamp.now()
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error('Error adding scan: ', error);
-    throw error;
-  }
-};
 
 
 export const getUserScans = async (userId: string) => {

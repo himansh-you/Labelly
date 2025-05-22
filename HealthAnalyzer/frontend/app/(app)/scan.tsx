@@ -12,14 +12,8 @@ import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import CameraView from '@/components/CameraView';
-import { analyzeIngredients } from '@/lib/api'; // Import the real API function
-
-interface CapturedImage {
-  uri: string;
-  width: number;
-  height: number;
-  base64?: string;
-}
+import { analyzeIngredients } from '@/lib/api';
+import { CapturedImage } from '@/lib/camera';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -60,12 +54,12 @@ export default function ScanScreen() {
       const analysisResult = await analyzeIngredients(imageUri);
       console.log("Analysis result:", JSON.stringify(analysisResult));
       
-      // Navigate to results screen with the analysis data
+      // Navigate to results screen with the analysis result
       router.push({
         pathname: '/(app)/result',
         params: {
-          result: JSON.stringify(analysisResult),
-          imageUri: imageUri
+          imageUri: imageUri,
+          analyzeResult: JSON.stringify(analysisResult)
         }
       });
       
