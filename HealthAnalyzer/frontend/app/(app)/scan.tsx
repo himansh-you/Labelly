@@ -58,6 +58,7 @@ export default function ScanScreen() {
       
       // Use the analyzeIngredients function from API
       const analysisResult = await analyzeIngredients(imageUri);
+      console.log("Analysis result:", JSON.stringify(analysisResult));
       
       // Navigate to results screen with the analysis data
       router.push({

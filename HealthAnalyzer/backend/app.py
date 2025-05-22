@@ -32,7 +32,7 @@ firebase_config = {
 
 # Initialize Perplexity API key
 perplexity_api_key = os.environ.get("PERPLEXITY_API_KEY")
-
+print(f"Perplexity API key:", perplexity_api_key)
 
 @app.route("/", methods=["GET"])
 def health_check():
@@ -121,7 +121,7 @@ def analyze_ingredients():
     try:
         # Call Perplexity API
         response = requests.post(url, headers=headers, json=payload)
-        print(response)
+        response.raise_for_status()
         perplexity_data = response.json()
 
         # Store scan in Firestore
