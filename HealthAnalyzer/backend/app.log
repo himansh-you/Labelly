@@ -28,3 +28,28 @@
 2025-05-22 18:07:11,222 - __main__ - INFO - Perplexity API call successful
 2025-05-22 18:07:11,223 - __main__ - INFO - Storing scan data in Firestore
 2025-05-22 18:07:11,667 - __main__ - INFO - Scan data stored successfully
+2025-05-22 19:00:51,563 - __main__ - INFO - Analyze ingredients endpoint called
+2025-05-22 19:00:51,570 - __main__ - INFO - User authenticated: mpaMshjfYFY44ThlSXBHsGdFvlp1
+2025-05-22 19:00:51,605 - __main__ - INFO - Processing image: ingredient_image.jpg
+2025-05-22 19:00:51,606 - __main__ - INFO - Calling Perplexity API
+2025-05-22 19:01:02,741 - __main__ - INFO - Perplexity API call successful
+2025-05-22 19:01:02,742 - __main__ - INFO - Storing scan data in Firestore
+2025-05-22 19:01:02,918 - __main__ - INFO - Scan data stored successfully
+2025-05-22 19:08:05,517 - __main__ - INFO - Analyze ingredients endpoint called
+2025-05-22 19:08:05,519 - __main__ - INFO - User authenticated: mpaMshjfYFY44ThlSXBHsGdFvlp1
+2025-05-22 19:08:05,597 - __main__ - INFO - Processing image: ingredient_image.jpg
+2025-05-22 19:08:05,599 - __main__ - INFO - Calling Perplexity API
+2025-05-22 19:08:18,222 - __main__ - INFO - Perplexity API call successful
+2025-05-22 19:08:18,223 - __main__ - INFO - Storing scan data in Firestore
+2025-05-22 19:08:18,638 - __main__ - INFO - Scan data stored successfully
+2025-05-22 19:15:18,936 - __main__ - INFO - Starting Health Analyzer backend
+2025-05-22 19:15:18,972 - __main__ - INFO - Firebase initialized successfully
+2025-05-22 19:15:18,973 - __main__ - INFO - Perplexity API key initialized
+2025-05-22 19:15:18,975 - __main__ - INFO - Starting Flask app on port 5000
+2025-05-22 19:16:56,146 - __main__ - INFO - Analyze ingredients endpoint called
+2025-05-22 19:16:56,223 - __main__ - INFO - User authenticated: mpaMshjfYFY44ThlSXBHsGdFvlp1
+2025-05-22 19:16:56,225 - __main__ - INFO - Processing image: ingredient_image.jpg
+2025-05-22 19:16:56,227 - __main__ - INFO - Calling Perplexity API
+2025-05-22 19:17:06,648 - __main__ - INFO - Perplexity API call successful
+2025-05-22 19:17:06,649 - __main__ - INFO - Storing scan data in Firestore
+2025-05-22 19:17:07,098 - __main__ - INFO - Scan data stored successfully

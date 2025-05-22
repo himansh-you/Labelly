@@ -1,26 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Share, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Share, ActivityIndicator, Alert, TextStyle, ViewStyle, ImageStyle } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
-import HealthSummaryCard from '@/components/HealthSummaryCard';
+import Markdown from 'react-native-markdown-display';
 import ScanButton from '@/components/ScanButton';
 import { getUserScans, getScanById, ScanData } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
 
-interface Warning {
-  ingredient: string;
-  level: 'low' | 'moderate' | 'high';
-  description: string;
-}
+// Markdown styles definition
+type MarkdownStyle = {
+  [key: string]: ViewStyle | TextStyle | ImageStyle;
+};
 
-interface AnalysisResult {
-  analysis: string;
-  citations?: any[];
-  healthScore?: string;
-  summary?: string;
-  insights?: string[];
-  warnings?: Warning[];
-}
+const markdownStyles: MarkdownStyle = {
+  heading1: { fontSize: 22, fontWeight: 'bold' as const, marginVertical: 8 },
+  heading2: { fontSize: 18, fontWeight: 'bold' as const, marginVertical: 6 },
+  heading3: { fontSize: 16, fontWeight: 'bold' as const, marginVertical: 4 },
+  paragraph: { fontSize: 16, lineHeight: 24, marginVertical: 4, color: '#333' },
+  list_item: { fontSize: 16, marginVertical: 2, color: '#333' },
+  bullet_list: { marginLeft: 8 },
+  ordered_list: { marginLeft: 8 },
+  strong: { fontWeight: 'bold' as const },
+  em: { fontStyle: 'italic' as const },
+  link: { color: '#007AFF', textDecorationLine: 'underline' as const },
+  blockquote: { backgroundColor: '#f0f0f0', paddingHorizontal: 12, paddingVertical: 8, borderLeftWidth: 4, borderLeftColor: '#ddd' },
+  code_block: { backgroundColor: '#f8f8f8', padding: 10, borderRadius: 4, fontFamily: 'monospace' },
+  code_inline: { backgroundColor: '#f8f8f8', padding: 2, fontFamily: 'monospace' }
+};
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -33,7 +39,8 @@ export default function ResultScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanData, setScanData] = useState<ScanData | null>(null);
-  const [formattedResult, setFormattedResult] = useState<AnalysisResult | null>(null);
+  const [markdownContent, setMarkdownContent] = useState<string>('');
+  const [citations, setCitations] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchScanData() {
@@ -46,14 +53,9 @@ export default function ResultScreen() {
           try {
             const parsedResult = JSON.parse(analyzeResult);
             
-            // Create formatted result directly from the parsed result
-            const result: AnalysisResult = {
-              analysis: parsedResult.analysis || '',
-              citations: parsedResult.citations || [],
-            };
-            
-            // Process the result same way as before
-            processAnalysisResult(result);
+            // Just store the raw analysis and citations
+            setMarkdownContent(parsedResult.analysis || '');
+            setCitations(parsedResult.citations || []);
             setIsLoading(false);
             return;
           } catch (parseError) {
@@ -87,17 +89,11 @@ export default function ResultScreen() {
         
         setScanData(scan);
         
-        // Format the analysis result
-        const analysisResult = scan.analysisResult;
-        
-        // Process the AI's response into our expected format
-        const result: AnalysisResult = {
-          analysis: analysisResult.analysis || '',
-          citations: analysisResult.citations || [],
-        };
-        
-        // Process the analysis result
-        processAnalysisResult(result);
+        // Store the raw analysis content
+        if (scan.analysisResult) {
+          setMarkdownContent(scan.analysisResult.analysis || '');
+          setCitations(scan.analysisResult.citations || []);
+        }
       } catch (error) {
         console.error('Error fetching scan data:', error);
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
@@ -106,112 +102,15 @@ export default function ResultScreen() {
       }
     }
     
-    // Function to process analysis text and extract structured data
-    function processAnalysisResult(result: AnalysisResult) {
-      if (result.analysis) {
-        // Try to extract health verdict (Safe, Conditionally Safe, Potentially Unsafe)
-        const healthVerdictMatch = result.analysis.match(/Overall Safety Verdict:?\s*(Safe|Conditionally Safe|Potentially Unsafe)/i);
-        if (healthVerdictMatch) {
-          result.healthScore = healthVerdictMatch[1];
-        } else {
-          result.healthScore = 'Unknown';
-        }
-        
-        // Extract a summary from the beginning of the analysis
-        const firstParagraphEnd = result.analysis.indexOf('\n\n');
-        if (firstParagraphEnd > 0) {
-          result.summary = result.analysis.substring(0, firstParagraphEnd).trim();
-        } else {
-          result.summary = result.analysis.substring(0, 150) + '...';
-        }
-        
-        // Extract warnings for flagged ingredients
-        const warnings: Warning[] = [];
-        const lines = result.analysis.split('\n');
-        
-        let currentIngredient = '';
-        let currentConcern = '';
-        let currentRisk = '';
-        
-        for (const line of lines) {
-          // Check for ingredient names
-          if (line.match(/^[A-Z][a-zA-Z\s\-()]+:$/)) {
-            currentIngredient = line.replace(':', '').trim();
-          } 
-          // Check for risk level
-          else if (line.includes('Risk level:')) {
-            const riskMatch = line.match(/Risk level:\s*(Moderate|High)/i);
-            if (riskMatch) {
-              currentRisk = riskMatch[1].toLowerCase();
-              
-              // If we have all the info, add a warning
-              if (currentIngredient && currentRisk) {
-                warnings.push({
-                  ingredient: currentIngredient,
-                  level: currentRisk as 'low' | 'moderate' | 'high',
-                  description: currentConcern || 'Potentially harmful ingredient',
-                });
-                
-                // Reset for the next ingredient
-                currentIngredient = '';
-                currentConcern = '';
-                currentRisk = '';
-              }
-            }
-          }
-          // Check for concern
-          else if (line.includes('Concern:')) {
-            const concernMatch = line.match(/Concern:\s*(.+)/i);
-            if (concernMatch) {
-              currentConcern = concernMatch[1].trim();
-            }
-          }
-        }
-        
-        result.warnings = warnings;
-        
-        // Extract insights
-        const insights: string[] = [];
-        let insightSection = false;
-        
-        for (const line of lines) {
-          // Skip empty lines
-          if (!line.trim()) continue;
-          
-          // If we found a bullet point that's not part of warnings
-          if (line.trim().startsWith('•') || line.trim().startsWith('-')) {
-            // Skip lines about ingredients we already covered in warnings
-            if (!warnings.some(w => line.includes(w.ingredient))) {
-              insights.push(line.trim().substring(1).trim());
-            }
-          }
-        }
-        
-        // If we didn't find any insights, create some from the summary
-        if (insights.length === 0 && result.summary) {
-          insights.push(result.summary);
-        }
-        
-        result.insights = insights;
-      }
-      
-      setFormattedResult(result);
-    }
-    
     fetchScanData();
   }, [scanId, analyzeResult]);
 
   const handleShare = async () => {
-    if (!formattedResult) return;
+    if (!markdownContent) return;
     
     try {
-      const shareText = formattedResult.analysis || 
-        `Health Analysis: ${formattedResult.healthScore || 'Unknown'}\n\n${formattedResult.summary || ''}\n\n${
-          (formattedResult.warnings || []).map(w => `- ${w.ingredient}: ${w.description}`).join('\n')
-        }`;
-        
       await Share.share({
-        message: shareText,
+        message: markdownContent,
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -245,7 +144,7 @@ export default function ResultScreen() {
     );
   }
 
-  if (!formattedResult) {
+  if (!markdownContent) {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text>No analysis result found.</Text>
@@ -281,30 +180,22 @@ export default function ResultScreen() {
         </View>
       )}
 
-      {formattedResult.healthScore && formattedResult.summary ? (
-        <HealthSummaryCard
-          healthScore={formattedResult.healthScore}
-          summary={formattedResult.summary}
-          insights={formattedResult.insights || []}
-          warnings={formattedResult.warnings || []}
-        />
-      ) : (
-        <View style={styles.rawAnalysisContainer}>
-          <Text style={styles.rawAnalysisTitle}>Analysis Result</Text>
-          <Text style={styles.rawAnalysisText}>{formattedResult.analysis}</Text>
-          
-          {formattedResult.citations && formattedResult.citations.length > 0 && (
-            <View style={styles.citationsContainer}>
-              <Text style={styles.citationsTitle}>Sources:</Text>
-              {formattedResult.citations.map((citation, index) => (
-                <Text key={index} style={styles.citationText}>
-                  {index + 1}. {citation.source || citation.url || 'Unknown source'}
-                </Text>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
+      <View style={styles.markdownContainer}>
+        <Markdown style={markdownStyles}>
+          {markdownContent}
+        </Markdown>
+        
+        {citations && citations.length > 0 && (
+          <View style={styles.citationsContainer}>
+            <Text style={styles.citationsTitle}>Sources:</Text>
+            {citations.map((citation, index) => (
+              <Text key={index} style={styles.citationText}>
+                {index + 1}. {citation.source || citation.url || 'Unknown source'}
+              </Text>
+            ))}
+          </View>
+        )}
+      </View>
 
       <View style={styles.newScanContainer}>
         <ScanButton size="medium" onPress={handleNewScan} />
@@ -389,7 +280,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: 20,
   },
-  rawAnalysisContainer: {
+  markdownContainer: {
     margin: 16,
     padding: 16,
     backgroundColor: '#fff',
@@ -399,16 +290,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-  },
-  rawAnalysisTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  rawAnalysisText: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: '#333',
   },
   citationsContainer: {
     marginTop: 16,
