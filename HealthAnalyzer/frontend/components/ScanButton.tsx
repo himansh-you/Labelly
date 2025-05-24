@@ -6,11 +6,13 @@ import { useRouter } from 'expo-router';
 interface ScanButtonProps {
   size?: 'small' | 'medium' | 'large';
   onPress?: () => void;
+  variant?: 'primary' | 'secondary';
 }
 
 export default function ScanButton({ 
   size = 'large',
-  onPress
+  onPress,
+  variant = 'primary'
 }: ScanButtonProps) {
   const router = useRouter();
 
@@ -25,7 +27,7 @@ export default function ScanButton({
 
   return (
     <TouchableOpacity
-      style={[styles.button, styles[`button${size.charAt(0).toUpperCase() + size.slice(1)}`]]}
+            style={[        styles.button,         size === 'large' ? styles.buttonLarge : size === 'medium' ? styles.buttonMedium : styles.buttonSmall,        variant === 'secondary' && styles.buttonSecondary      ]}
       onPress={handlePress}
       activeOpacity={0.8}
     >
@@ -33,10 +35,10 @@ export default function ScanButton({
         <FontAwesome 
           name="camera" 
           size={size === 'large' ? 24 : size === 'medium' ? 18 : 14} 
-          color="#fff" 
+          color={variant === 'secondary' ? '#363636' : '#fff'} 
           style={styles.icon}
         />
-        <Text style={[styles.text, styles[`text${size.charAt(0).toUpperCase() + size.slice(1)}`]]}>
+                <Text style={[          styles.text,           size === 'large' ? styles.textLarge : size === 'medium' ? styles.textMedium : styles.textSmall,          variant === 'secondary' && styles.textSecondary        ]}>
           Scan Ingredients
         </Text>
       </View>
@@ -46,27 +48,32 @@ export default function ScanButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#4CAF50', // Green color
-    borderRadius: 50,
+    backgroundColor: '#363636',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  buttonSecondary: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#363636',
   },
   buttonLarge: {
     paddingVertical: 18,
     paddingHorizontal: 36,
-    width: '80%',
+    width: '100%',
     maxWidth: 300,
   },
   buttonMedium: {
     paddingVertical: 14,
     paddingHorizontal: 28,
-    width: '60%',
-    maxWidth: 200,
+    width: '80%',
+    maxWidth: 240,
   },
   buttonSmall: {
     paddingVertical: 10,
@@ -81,6 +88,9 @@ const styles = StyleSheet.create({
   text: {
     color: '#fff',
     fontWeight: '600',
+  },
+  textSecondary: {
+    color: '#363636',
   },
   textLarge: {
     fontSize: 18,
