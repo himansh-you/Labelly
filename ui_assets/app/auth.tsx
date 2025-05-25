@@ -1,44 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { TouchableOpacity, TextInput, Keyboard, Platform, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, TextInput, Keyboard, Platform } from 'react-native';
 import { Stack, Text } from '@tamagui/core';
-import { router } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
-import { Logo } from '@/components/Logo';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
+import { useRouter } from 'expo-router';
+import { Logo, GoogleIcon } from '../components';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
   withTiming,
-  Easing 
+  withSpring,
+  Easing,
+  interpolate,
 } from 'react-native-reanimated';
 
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
 
-// Login screen component
-export default function LoginScreen() {
+export default function AuthScreen() {
+  const router = useRouter();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user } = useAuth();
   
   // Animated values
   const contentOffset = useSharedValue(0);
   const logoOpacity = useSharedValue(1);
+  const formTransition = useSharedValue(1); // Start at 1 (visible)
 
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (event) => {
-        // Move welcome content and form up
-        contentOffset.value = withTiming(-event.endCoordinates.height * 0.4, {
-          duration: Platform.OS === 'ios' ? 250 : 200,
-          easing: Easing.out(Easing.quad),
+        contentOffset.value = withSpring(-event.endCoordinates.height * 0.4, {
+          damping: 20,
+          stiffness: 300,
         });
         
-        // Fade out logo
         logoOpacity.value = withTiming(0, {
-          duration: Platform.OS === 'ios' ? 200 : 150,
-          easing: Easing.out(Easing.quad),
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
         });
       }
     );
@@ -46,16 +45,14 @@ export default function LoginScreen() {
     const keyboardWillHide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
-        // Return content to original position
-        contentOffset.value = withTiming(0, {
-          duration: Platform.OS === 'ios' ? 250 : 200,
-          easing: Easing.out(Easing.quad),
+        contentOffset.value = withSpring(0, {
+          damping: 20,
+          stiffness: 300,
         });
         
-        // Fade in logo
         logoOpacity.value = withTiming(1, {
-          duration: Platform.OS === 'ios' ? 200 : 150,
-          easing: Easing.out(Easing.quad),
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
         });
       }
     );
@@ -66,45 +63,74 @@ export default function LoginScreen() {
     };
   }, []);
 
+  // Single smooth form transition when switching between login/signup
+  useEffect(() => {
+    // Smooth fade out and slide
+    formTransition.value = withTiming(0, {
+      duration: 250,
+      easing: Easing.inOut(Easing.cubic),
+    });
+
+    // After fade out, switch content and fade back in
+    setTimeout(() => {
+      formTransition.value = withSpring(1, {
+        damping: 18,
+        stiffness: 200,
+      });
+    }, 250);
+  }, [isSignUp]);
+
   const logoAnimatedStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
+    transform: [
+      {
+        scale: interpolate(logoOpacity.value, [0, 1], [0.8, 1]),
+      },
+    ],
   }));
 
   const contentAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: contentOffset.value }],
   }));
 
-  const handleSignIn = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
-      return;
-    }
+  // Single unified form container animation
+  const formAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: formTransition.value,
+    transform: [
+      {
+        translateY: interpolate(formTransition.value, [0, 1], [30, 0]),
+      },
+      {
+        scale: interpolate(formTransition.value, [0, 1], [0.95, 1]),
+      },
+    ],
+  }));
 
-    setIsLoading(true);
-    try {
-      const { error } = await signIn(email, password);
-      if (error) {
-        Alert.alert('Error', error.message || 'Failed to sign in');
-      } else {
-        console.log('Login successful');
-        console.log(user);
-        // Navigation should happen automatically from RootLayoutNav once user state changes
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
+  const handlePrimaryAction = () => {
+    if (isSignUp) {
+      console.log('Sign up pressed');
+      // Handle sign up logic and navigate to welcome
+      router.push('/welcome');
+    } else {
+      console.log('Sign in pressed');
+      // Handle sign in logic and navigate to welcome
+      router.push('/welcome');
     }
+  };
+
+  const handleSecondaryAction = () => {
+    // Clear form and switch mode with smooth transition
+    setEmail('');
+    setPassword('');
+    setIsSignUp(!isSignUp);
   };
 
   const handleForgotPassword = () => {
-    // Navigate to forgot password screen
     console.log('Forgot password pressed');
   };
 
-  const navigateToSignup = () => {
-    router.push('/(auth)/signup');
+  const handleGoogleAuth = () => {
+    console.log(isSignUp ? 'Sign up with Google' : 'Sign in with Google');
   };
 
   return (
@@ -112,12 +138,12 @@ export default function LoginScreen() {
       <StatusBar style="dark" backgroundColor="#FDFAF6" />
       <Stack 
         flex={1} 
-        backgroundColor="#FDFAF6" 
+        backgroundColor="$background" 
         paddingHorizontal="$6"
         paddingTop="$12"
         paddingBottom="$6"
       >
-        {/* Logo - Fades out */}
+        {/* Logo - Enhanced fade with scale */}
         <AnimatedStack 
           alignItems="center" 
           marginBottom="$10"
@@ -126,9 +152,9 @@ export default function LoginScreen() {
           <Logo width={200} height={67} color="#363636" />
         </AnimatedStack>
 
-        {/* Welcome Content + Form - Move up together */}
+        {/* Welcome Content + Form - Single unified animation */}
         <AnimatedStack 
-          style={contentAnimatedStyle}
+          style={[contentAnimatedStyle, formAnimatedStyle]}
           flex={1}
         >
           {/* Welcome Content */}
@@ -136,26 +162,29 @@ export default function LoginScreen() {
             <Text 
               fontSize={32}
               fontWeight="200" 
-              color="#363636" 
+              color="$color" 
               fontFamily="Baloo2Bold"
             >
-              Welcome Back!
+              {isSignUp ? 'Sign Up' : 'Welcome Back!'}
             </Text>
             
             <Text 
-              fontSize={20} 
-              color="#363636" 
+              fontSize={18} 
+              color="$color" 
               opacity={0.7}
               fontFamily="Baloo2Regular"
               lineHeight="$6"
             >
-              Enter your email and password to sign in to your account.
+              {isSignUp 
+                ? 'Create your account to get started.'
+                : 'Enter your email and password to sign in to your account.'
+              }
             </Text>
           </Stack>
 
           {/* Form Container */}
           <Stack 
-            backgroundColor="#FFFFFF" 
+            backgroundColor="$background" 
             borderRadius="$6" 
             borderWidth={1}
             borderColor="rgba(54, 54, 54, 0.1)"
@@ -167,7 +196,7 @@ export default function LoginScreen() {
               <Text 
                 fontSize={16}
                 fontWeight="600" 
-                color="#363636" 
+                color="$color" 
                 fontFamily="Baloo2SemiBold"
               >
                 Email
@@ -191,7 +220,6 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 returnKeyType="next"
-                autoComplete="email"
               />
             </Stack>
 
@@ -205,22 +233,24 @@ export default function LoginScreen() {
                 <Text 
                   fontSize={16}
                   fontWeight="600" 
-                  color="#363636" 
+                  color="$color" 
                   fontFamily="Baloo2SemiBold"
                 >
                   Password
                 </Text>
-                <TouchableOpacity onPress={handleForgotPassword}>
-                  <Text 
-                    fontSize={14}
-                    color="#363636" 
-                    fontFamily="Baloo2Regular"
-                    textDecorationLine="underline"
-                    opacity={0.7}
-                  >
-                    Forgot password?
-                  </Text>
-                </TouchableOpacity>
+                {!isSignUp && (
+                  <TouchableOpacity onPress={handleForgotPassword}>
+                    <Text 
+                      fontSize={14}
+                      color="$color" 
+                      fontFamily="Baloo2Regular"
+                      textDecorationLine="underline"
+                      opacity={0.7}
+                    >
+                      Forgot password?
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </Stack>
               <TextInput
                 style={{
@@ -240,57 +270,82 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry
                 returnKeyType="done"
-                onSubmitEditing={handleSignIn}
-                autoComplete="password"
+                onSubmitEditing={handlePrimaryAction}
               />
             </Stack>
 
-            {/* Sign In Button */}
+            {/* Primary Action Button */}
             <Stack marginTop="$4">
-              <TouchableOpacity onPress={handleSignIn} disabled={isLoading}>
+              <TouchableOpacity onPress={handlePrimaryAction}>
                 <Stack 
                   paddingHorizontal="$6"
                   paddingVertical="$3"
-                  backgroundColor="#363636" 
+                  backgroundColor="$color" 
                   borderRadius="$12"
                   alignItems="center"
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text 
-                      color="#FFFFFF"
-                      fontWeight="600"
-                      fontSize={18}
-                      fontFamily="Baloo2SemiBold"
-                    >
-                      Sign In
-                    </Text>
-                  )}
+                  <Text 
+                    color="$background"
+                    fontWeight="600"
+                    fontSize={18}
+                    fontFamily="Baloo2SemiBold"
+                  >
+                    {isSignUp ? 'Sign Up' : 'Sign In'}
+                  </Text>
                 </Stack>
               </TouchableOpacity>
             </Stack>
 
-            {/* Sign Up Link */}
-            <Stack alignItems="center" marginBottom={40}>
-              <Stack flexDirection="row" gap={4}>
+            {/* Google Auth Button - Only show for Sign Up */}
+            {isSignUp && (
+              <Stack>
+                <TouchableOpacity onPress={handleGoogleAuth}>
+                  <Stack 
+                    paddingHorizontal="$6"
+                    paddingVertical="$3"
+                    backgroundColor="white"
+                    borderRadius="$12"
+                    borderWidth={1}
+                    borderColor="#E0E0E0"
+                    alignItems="center"
+                    flexDirection="row"
+                    justifyContent="center"
+                    gap={12}
+                  >
+                    <GoogleIcon size={20} />
+                    <Text 
+                      color="#363636"
+                      fontWeight="600"
+                      fontSize={18}
+                      fontFamily="Baloo2SemiBold"
+                    >
+                      Sign up with Google
+                    </Text>
+                  </Stack>
+                </TouchableOpacity>
+              </Stack>
+            )}
+
+            {/* Switch Mode Link */}
+            <Stack alignItems="center" paddingTop="$2">
+              <Stack flexDirection="row" alignItems="center" gap={4}>
                 <Text 
                   fontSize={14}
-                  color="#363636"
+                  color="$color"
                   opacity={0.7}
                   fontFamily="Baloo2Regular"
                 >
-                  Don't have an account?
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}
                 </Text>
-                <TouchableOpacity onPress={navigateToSignup}>
+                <TouchableOpacity onPress={handleSecondaryAction}>
                   <Text 
                     fontSize={14}
-                    color="#363636"
+                    color="$color"
                     fontWeight="500"
                     textDecorationLine="underline"
                     fontFamily="Baloo2Medium"
                   >
-                    SignUp
+                    {isSignUp ? 'Sign in' : 'Sign up'}
                   </Text>
                 </TouchableOpacity>
               </Stack>

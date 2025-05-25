@@ -1,285 +1,323 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { StyleSheet, View, TouchableOpacity, Alert, Dimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Stack, Text } from '@tamagui/core';
 import { CameraView as ExpoCameraView, CameraType, useCameraPermissions, FlashMode } from 'expo-camera';
-import { Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat,
+  withTiming,
+  withSequence
+} from 'react-native-reanimated';
 
-interface CapturedImage {
-  uri: string;
-  width: number;
-  height: number;
-  base64?: string;
-}
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface CameraViewProps {
-  onImageCaptured?: (image: CapturedImage) => void;
-  onClose?: () => void;
+  onImageCaptured: (image: { uri: string }) => void;
+  onClose: () => void;
 }
+
+const AnimatedStack = Animated.createAnimatedComponent(Stack);
 
 export default function CameraView({ onImageCaptured, onClose }: CameraViewProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [flash, setFlash] = useState<FlashMode>('off');
-  const [isTakingPicture, setIsTakingPicture] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
-  const cameraRef = useRef<any>(null);
-  const navigation = useNavigation();
+  const cameraRef = useRef<ExpoCameraView>(null);
 
-  // Handle permission states
-  if (!permission) {
-    // Camera permissions are still loading
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
+  // Scanning animation
+  const scanLinePosition = useSharedValue(0);
+
+  useEffect(() => {
+    // Animated scanning line
+    scanLinePosition.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 2000 }),
+        withTiming(0, { duration: 2000 })
+      ),
+      -1,
+      false
     );
+  }, []);
+
+  const scanLineStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: scanLinePosition.value * 200, // 200 is the scan area height
+      },
+    ],
+  }));
+
+  if (!permission) {
+    return <View />;
   }
 
   if (!permission.granted) {
-    // Camera permissions are not granted yet
     return (
-      <View style={styles.container}>
-        <Text style={styles.text}>We need your permission to show the camera</Text>
-        <Text style={styles.subText}>
-          Please allow camera access to scan ingredient labels
+      <Stack flex={1} backgroundColor="#000" justifyContent="center" alignItems="center" space="$4">
+        <Text fontSize={18} color="white" textAlign="center" fontFamily="Baloo2Regular">
+          We need your permission to show the camera
         </Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
+        <TouchableOpacity onPress={requestPermission}>
+          <Stack 
+            backgroundColor="#363636" 
+            paddingHorizontal="$6" 
+            paddingVertical="$3" 
+            borderRadius="$4"
+          >
+            <Text color="white" fontSize={16} fontFamily="Baloo2SemiBold">
+              Grant Permission
+            </Text>
+          </Stack>
         </TouchableOpacity>
-        {onClose && (
-          <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={onClose}>
-            <Text style={styles.buttonText}>Cancel</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      </Stack>
     );
   }
 
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
-
   const toggleFlash = () => {
-    setFlash(current => {
-      switch (current) {
-        case 'off': return 'on';
-        case 'on': return 'auto';
-        case 'auto': return 'off';
-        default: return 'off';
-      }
-    });
+    setFlash(flash === 'off' ? 'on' : 'off');
   };
 
   const takePicture = async () => {
-    if (cameraRef.current && !isTakingPicture) {
-      setIsTakingPicture(true);
+    if (cameraRef.current) {
       try {
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.8,
-          base64: true,
+          base64: false,
         });
         
-        setCapturedImage(photo);
-        
-        if (onImageCaptured) {
-          onImageCaptured(photo);
+        if (photo) {
+          onImageCaptured({ uri: photo.uri });
         }
       } catch (error) {
-        console.error('Failed to take picture:', error);
-      } finally {
-        setIsTakingPicture(false);
+        console.error('Error taking picture:', error);
+        Alert.alert('Error', 'Failed to take picture');
       }
     }
   };
 
-  const retakePicture = () => {
-    setCapturedImage(null);
+  const pickFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        onImageCaptured({ uri: result.assets[0].uri });
+      }
+    } catch (error) {
+      console.error('Error picking from gallery:', error);
+    }
   };
 
-  if (capturedImage) {
-    return (
-      <View style={styles.container}>
-        <Image source={{ uri: capturedImage.uri }} style={styles.camera} />
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={retakePicture}>
-            <Text style={styles.buttonText}>Retake</Text>
-          </TouchableOpacity>
-          {onImageCaptured && (
-            <TouchableOpacity 
-              style={[styles.button, styles.acceptButton]} 
-              onPress={() => {
-                // The image has already been passed to onImageCaptured, just close the view
-                if (onClose) onClose();
-              }}
-            >
-              <Text style={styles.buttonText}>Use Photo</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <ExpoCameraView 
-        ref={cameraRef}
-        style={styles.camera}
-        facing={facing}
-        flash={flash}
-      >
-        <View style={styles.overlay}>
-          <Text style={styles.instructionText}>
-            Position the ingredients label in the frame
-          </Text>
-        </View>
-        <View style={styles.controlsContainer}>
-          <TouchableOpacity style={styles.controlButton} onPress={toggleFlash}>
-            <Text style={styles.controlText}>
-              Flash: {flash === 'off' ? 'Off' : flash === 'on' ? 'On' : 'Auto'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton} onPress={toggleCameraFacing}>
-            <Text style={styles.controlText}>Flip</Text>
-          </TouchableOpacity>
-          {onClose && (
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>×</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={styles.bottomControlsContainer}>
-          <TouchableOpacity 
-            style={styles.captureButton} 
-            onPress={takePicture}
-            disabled={isTakingPicture}
+    <>
+      <StatusBar style="light" backgroundColor="#000" />
+      <View style={styles.container}>
+        <ExpoCameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing={facing}
+          flash={flash}
+        >
+          {/* Top Overlay with Controls */}
+          <Stack 
+            position="absolute" 
+            top={0} 
+            left={0} 
+            right={0} 
+            paddingTop="$12" 
+            paddingHorizontal="$6"
+            zIndex={10}
           >
-            {isTakingPicture ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <View style={styles.captureButtonInner} />
-            )}
-          </TouchableOpacity>
-        </View>
-      </ExpoCameraView>
-    </View>
+            <Stack flexDirection="row" justifyContent="space-between" alignItems="center">
+              {/* Close Button */}
+              <TouchableOpacity onPress={onClose}>
+                <Stack 
+                  width={50} 
+                  height={50} 
+                  backgroundColor="rgba(255,255,255,0.2)" 
+                  borderRadius={25} 
+                  alignItems="center" 
+                  justifyContent="center"
+                >
+                  <Ionicons name="close" size={24} color="white" />
+                </Stack>
+              </TouchableOpacity>
+
+              {/* Flash Toggle */}
+              <TouchableOpacity onPress={toggleFlash}>
+                <Stack 
+                  width={50} 
+                  height={50} 
+                  backgroundColor="rgba(255,255,255,0.2)" 
+                  borderRadius={25} 
+                  alignItems="center" 
+                  justifyContent="center"
+                >
+                  <Ionicons 
+                    name={flash === 'on' ? 'flash' : 'flash-off'} 
+                    size={24} 
+                    color={flash === 'on' ? '#FFD700' : 'white'} 
+                  />
+                </Stack>
+              </TouchableOpacity>
+            </Stack>
+          </Stack>
+
+          {/* Center Scan Area */}
+          <Stack 
+            position="absolute" 
+            top="50%" 
+            left="50%" 
+            style={{
+              transform: [
+                { translateX: -150 },
+                { translateY: -100 }
+              ]
+            }}
+            zIndex={5}
+          >
+            {/* Scan Frame */}
+            <Stack
+              width={300}
+              height={200}
+              borderWidth={3}
+              borderColor="rgba(255,255,255,0.8)"
+              borderRadius={20}
+              backgroundColor="transparent"
+              position="relative"
+              overflow="hidden"
+            >
+              {/* Corner Indicators */}
+              <Stack position="absolute" top={-2} left={-2} width={30} height={30}>
+                <Stack width={20} height={3} backgroundColor="white" />
+                <Stack width={3} height={20} backgroundColor="white" />
+              </Stack>
+              <Stack position="absolute" top={-2} right={-2} width={30} height={30}>
+                <Stack width={20} height={3} backgroundColor="white" position="absolute" right={0} />
+                <Stack width={3} height={20} backgroundColor="white" position="absolute" right={0} />
+              </Stack>
+              <Stack position="absolute" bottom={-2} left={-2} width={30} height={30}>
+                <Stack width={3} height={20} backgroundColor="white" position="absolute" bottom={0} />
+                <Stack width={20} height={3} backgroundColor="white" position="absolute" bottom={0} />
+              </Stack>
+              <Stack position="absolute" bottom={-2} right={-2} width={30} height={30}>
+                <Stack width={3} height={20} backgroundColor="white" position="absolute" bottom={0} right={0} />
+                <Stack width={20} height={3} backgroundColor="white" position="absolute" bottom={0} right={0} />
+              </Stack>
+
+              {/* Animated Scanning Line */}
+              <AnimatedStack
+                position="absolute"
+                left={0}
+                right={0}
+                height={2}
+                backgroundColor="rgba(76, 175, 80, 0.8)"
+                style={scanLineStyle}
+              />
+            </Stack>
+
+            {/* Instruction Text */}
+            <Stack alignItems="center" marginTop="$4">
+              <Text 
+                color="white" 
+                fontSize={16} 
+                fontFamily="Baloo2SemiBold"
+                textAlign="center"
+                backgroundColor="rgba(0,0,0,0.5)"
+                paddingHorizontal="$4"
+                paddingVertical="$2"
+                borderRadius="$3"
+              >
+                Align nutrition label within frame
+              </Text>
+            </Stack>
+          </Stack>
+
+          {/* Bottom Controls */}
+          <Stack 
+            position="absolute" 
+            bottom={0} 
+            left={0} 
+            right={0} 
+            paddingBottom="$8" 
+            paddingHorizontal="$6"
+            zIndex={10}
+          >
+            <Stack flexDirection="row" justifyContent="space-between" alignItems="center">
+              {/* Gallery Button */}
+              <TouchableOpacity onPress={pickFromGallery}>
+                <Stack 
+                  width={60} 
+                  height={60} 
+                  backgroundColor="rgba(255,255,255,0.2)" 
+                  borderRadius={30} 
+                  alignItems="center" 
+                  justifyContent="center"
+                >
+                  <Ionicons name="images" size={28} color="white" />
+                </Stack>
+              </TouchableOpacity>
+
+              {/* Capture Button */}
+              <TouchableOpacity onPress={takePicture}>
+                <Stack 
+                  width={80} 
+                  height={80} 
+                  backgroundColor="white" 
+                  borderRadius={40} 
+                  alignItems="center" 
+                  justifyContent="center"
+                  borderWidth={4}
+                  borderColor="rgba(255,255,255,0.3)"
+                >
+                  <Stack 
+                    width={60} 
+                    height={60} 
+                    backgroundColor="#363636" 
+                    borderRadius={30} 
+                    alignItems="center" 
+                    justifyContent="center"
+                  >
+                    <Ionicons name="camera" size={24} color="white" />
+                  </Stack>
+                </Stack>
+              </TouchableOpacity>
+
+              {/* Placeholder for symmetry */}
+              <Stack width={60} height={60} />
+            </Stack>
+          </Stack>
+
+          {/* Dark Overlay */}
+          <Stack 
+            position="absolute" 
+            top={0} 
+            left={0} 
+            right={0} 
+            bottom={0} 
+            backgroundColor="rgba(0,0,0,0.3)"
+            pointerEvents="none"
+            zIndex={1}
+          />
+        </ExpoCameraView>
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: '#000',
   },
   camera: {
     flex: 1,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  button: {
-    padding: 15,
-    borderRadius: 10,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    flex: 1,
-    margin: 5,
-  },
-  buttonText: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  text: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    textAlign: 'center',
-    margin: 10,
-  },
-  subText: {
-    fontSize: 16,
-    color: 'white',
-    textAlign: 'center',
-    margin: 10,
-    marginBottom: 30,
-  },
-  overlay: {
-    position: 'absolute',
-    top: 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  instructionText: {
-    fontSize: 18,
-    color: 'white',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 10,
-    borderRadius: 5,
-  },
-  controlsContainer: {
-    position: 'absolute',
-    top: 40,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    paddingHorizontal: 20,
-  },
-  controlButton: {
-    padding: 10,
-    borderRadius: 5,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  controlText: {
-    color: 'white',
-    fontSize: 14,
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeButtonText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  bottomControlsContainer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'white',
-  },
-  cancelButton: {
-    backgroundColor: '#FF3B30',
-  },
-  acceptButton: {
-    backgroundColor: '#34C759',
   },
 }); 

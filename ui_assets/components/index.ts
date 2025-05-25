@@ -1,5 +1,6 @@
 // Export all components here for clean imports
 export { Logo } from './Logo'
+export { GoogleIcon } from './GoogleIcon'
 
 // Example:
 // export { default as Button } from './Button'

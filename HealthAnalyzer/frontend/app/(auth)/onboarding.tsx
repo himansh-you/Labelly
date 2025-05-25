@@ -3,13 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { TouchableOpacity } from 'react-native';
 import { Stack, Text } from '@tamagui/core';
 import { useRouter } from 'expo-router';
-import { Logo } from '../components';
+import { Logo } from '@/components/Logo';
 
 export default function OnboardingScreen() {
   const router = useRouter();
 
   const handleGetStarted = () => {
-    router.push('/welcome');
+    router.push('/(auth)/auth');
   };
 
   return (
@@ -17,7 +17,7 @@ export default function OnboardingScreen() {
       <StatusBar style="dark" backgroundColor="#FDFAF6" />
       <Stack 
         flex={1} 
-        backgroundColor="$background" 
+        backgroundColor="#FDFAF6" 
         paddingHorizontal="$4"
       >
         {/* Main content - centered */}
@@ -33,19 +33,19 @@ export default function OnboardingScreen() {
               <Text 
                 fontSize={28}
                 fontWeight="200" 
-                color="$color" 
+                color="#363636" 
                 textAlign="center"
-                fontFamily="Baloo2Bold"
+                style={{ fontFamily: 'Baloo2Bold' }}
               >
                 Know your product
               </Text>
               <Text 
                 fontSize={20} 
-                color="$color" 
+                color="#363636" 
                 textAlign="center" 
                 opacity={0.7}
                 maxWidth={420}
-                fontFamily="Baloo2Regular"
+                style={{ fontFamily: 'Baloo2Regular' }}
               >
                 Instantly see what's really inside any product.
               </Text>
@@ -59,15 +59,15 @@ export default function OnboardingScreen() {
             <Stack 
               paddingHorizontal="$6"
               paddingVertical="$3"
-              backgroundColor="$color" 
+              backgroundColor="#363636" 
               borderRadius="$12"
               alignItems="center"
             >
               <Text 
-                color="$background"
+                color="#FDFAF6"
                 fontWeight="600"
                 fontSize={20}
-                fontFamily="Baloo2SemiBold"
+                style={{ fontFamily: 'Baloo2SemiBold' }}
               >
                 Get Started
               </Text>

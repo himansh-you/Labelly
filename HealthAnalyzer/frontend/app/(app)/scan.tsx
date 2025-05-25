@@ -1,19 +1,96 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  StyleSheet, 
-  View, 
-  Text, 
-  TouchableOpacity, 
   ActivityIndicator,
   Alert,
   Image 
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Stack, Text } from '@tamagui/core';
 import { useRouter } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons';
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import CameraView from '@/components/CameraView';
 import { analyzeIngredients } from '@/lib/api';
 import { CapturedImage } from '@/lib/camera';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+  runOnJS
+} from 'react-native-reanimated';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+// Animated Button Component
+interface AnimatedButtonProps {
+  onPress: () => void;
+  disabled?: boolean;
+  backgroundColor: string;
+  children: React.ReactNode;
+  borderColor?: string;
+}
+
+const AnimatedButton: React.FC<AnimatedButtonProps> = ({ 
+  onPress, 
+  disabled = false, 
+  backgroundColor, 
+  children, 
+  borderColor 
+}) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const handlePressIn = () => {
+    if (!disabled) {
+      scale.value = withSpring(0.95);
+      opacity.value = 0.8;
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!disabled) {
+      scale.value = withSpring(1);
+      opacity.value = 1;
+    }
+  };
+
+  const handlePress = () => {
+    if (!disabled) {
+      runOnJS(onPress)();
+    }
+  };
+
+  return (
+    <AnimatedTouchableOpacity
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled}
+      style={animatedStyle}
+    >
+      <Stack
+        backgroundColor={backgroundColor}
+        borderRadius="$4"
+        paddingVertical="$4"
+        paddingHorizontal="$6"
+        alignItems="center"
+        justifyContent="center"
+        borderWidth={borderColor ? 2 : 0}
+        borderColor={borderColor}
+        opacity={disabled ? 0.6 : 1}
+        minHeight={56}
+      >
+        {children}
+      </Stack>
+    </AnimatedTouchableOpacity>
+  );
+};
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -28,11 +105,9 @@ export default function ScanScreen() {
 
   const handleImageFromGallery = async () => {
     try {
-      // No permissions request is necessary for launching the image library
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        // aspect: [4, 3],
         quality: 1,
       });
 
@@ -50,11 +125,9 @@ export default function ScanScreen() {
     try {
       setIsAnalyzing(true);
       
-      // Use the analyzeIngredients function from API
       const analysisResult = await analyzeIngredients(imageUri);
       console.log("Analysis result:", JSON.stringify(analysisResult));
       
-      // Navigate to results screen with the analysis result
       router.push({
         pathname: '/(app)/result',
         params: {
@@ -66,7 +139,6 @@ export default function ScanScreen() {
     } catch (error) {
       console.error('Error analyzing image:', error);
       
-      // Display a more detailed error message if available
       let errorMessage = 'Failed to analyze the image. Please try again.';
       if (error instanceof Error) {
         errorMessage = error.message || errorMessage;
@@ -90,202 +162,187 @@ export default function ScanScreen() {
     setShowCamera(false);
   };
 
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <FontAwesome name="arrow-left" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan Ingredients</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <>
+      <StatusBar style="dark" backgroundColor="#FDFAF6" />
+      <Stack flex={1} backgroundColor="#FDFAF6">
+        {showCamera ? (
+          <CameraView
+            onImageCaptured={handleImageCaptured}
+            onClose={closeCamera}
+          />
+        ) : (
+          <Stack flex={1} paddingHorizontal="$6" paddingTop="$12" paddingBottom="$6">
+            {/* Back Button */}
+            <Stack marginBottom="$6">
+              <TouchableOpacity onPress={handleBack}>
+                <Stack 
+                  flexDirection="row" 
+                  alignItems="center" 
+                  space="$2"
+                  paddingVertical="$2"
+                >
+                  <Ionicons name="arrow-back" size={24} color="#363636" />
+                  <Text 
+                    fontSize={18} 
+                    fontFamily="Baloo2SemiBold" 
+                    color="#363636"
+                  >
+                    Back
+                  </Text>
+                </Stack>
+              </TouchableOpacity>
+            </Stack>
 
-      {showCamera ? (
-        <CameraView
-          onImageCaptured={handleImageCaptured}
-          onClose={closeCamera}
-        />
-      ) : !imageUri ? (
-        <>
-          <View style={styles.cameraPrompt}>
-            <Text style={styles.promptTitle}>Scan Product Ingredients</Text>
-            <Text style={styles.promptText}>
-              Take a clear photo of the product's ingredient list to analyze its healthiness
-            </Text>
-            
-            <TouchableOpacity 
-              style={styles.cameraButton}
-              onPress={startCamera}
-            >
-              <FontAwesome name="camera" size={24} color="#fff" style={styles.buttonIcon} />
-              <Text style={styles.cameraButtonText}>Open Camera</Text>
-            </TouchableOpacity>
+            {!imageUri ? (
+              <Stack flex={1} justifyContent="center" alignItems="center" space="$6">
+                {/* Title and Description */}
+                <Stack alignItems="center" space="$3">
+                  <Text 
+                    fontSize={32}
+                    fontWeight="600" 
+                    color="#363636" 
+                    textAlign="center"
+                    fontFamily="Baloo2Bold"
+                  >
+                    Scan Product Ingredients
+                  </Text>
+                  
+                  <Text 
+                    fontSize={20} 
+                    color="#363636" 
+                    textAlign="center" 
+                    opacity={0.7}
+                    maxWidth={350}
+                    fontFamily="Baloo2Regular"
+                    lineHeight="$6"
+                  >
+                    Take a clear photo of the product's ingredient list to analyze its healthiness
+                  </Text>
+                </Stack>
 
-            <TouchableOpacity 
-              style={styles.galleryButton}
-              onPress={handleImageFromGallery}
-            >
-              <FontAwesome name="image" size={20} color="#4CAF50" style={styles.buttonIcon} />
-              <Text style={styles.galleryButtonText}>Select from Gallery</Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      ) : (
-        <>
-          <View style={styles.previewContainer}>
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.previewImage}
-              defaultSource={require('@/assets/placeholder.png')}
-            />
-          </View>
+                {/* Camera Icon */}
+                <Stack 
+                  width={120} 
+                  height={120} 
+                  backgroundColor="#363636" 
+                  borderRadius={60} 
+                  alignItems="center" 
+                  justifyContent="center"
+                  marginVertical="$4"
+                >
+                  <Ionicons name="camera" size={48} color="#FDFAF6" />
+                </Stack>
 
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={handleCancel}
-              disabled={isAnalyzing}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
+                {/* Action Buttons */}
+                <Stack width="100%" space="$4" paddingHorizontal="$4">
+                  <AnimatedButton
+                    onPress={startCamera}
+                    backgroundColor="#363636"
+                  >
+                    <Stack flexDirection="row" alignItems="center" space="$3">
+                      <Ionicons name="camera" size={24} color="#FDFAF6" />
+                      <Text 
+                        color="#FDFAF6"
+                        fontSize={18}
+                        fontFamily="Baloo2SemiBold"
+                      >
+                        Open Camera
+                      </Text>
+                    </Stack>
+                  </AnimatedButton>
 
-            <TouchableOpacity
-              style={styles.analyzeButton}
-              onPress={handleAnalyze}
-              disabled={isAnalyzing}
-            >
-              {isAnalyzing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.analyzeButtonText}>Analyze</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
-    </View>
+                  <AnimatedButton
+                    onPress={handleImageFromGallery}
+                    backgroundColor="#FDFAF6"
+                    borderColor="#363636"
+                  >
+                    <Stack flexDirection="row" alignItems="center" space="$3">
+                      <Ionicons name="images" size={20} color="#363636" />
+                      <Text 
+                        color="#363636"
+                        fontSize={16}
+                        fontFamily="Baloo2SemiBold"
+                      >
+                        Select from Gallery
+                      </Text>
+                    </Stack>
+                  </AnimatedButton>
+                </Stack>
+              </Stack>
+            ) : (
+              <Stack flex={1} space="$6">
+                {/* Image Preview */}
+                <Stack 
+                  flex={1} 
+                  justifyContent="center" 
+                  alignItems="center"
+                  backgroundColor="#FFFFFF"
+                  borderRadius="$6"
+                  padding="$4"
+                  borderWidth={1}
+                  borderColor="rgba(54, 54, 54, 0.1)"
+                >
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: 12,
+                      resizeMode: 'contain'
+                    }}
+                    defaultSource={require('@/assets/placeholder.png')}
+                  />
+                </Stack>
+
+                {/* Action Buttons */}
+                <Stack flexDirection="row" space="$4">
+                  <Stack flex={1}>
+                    <AnimatedButton
+                      onPress={handleCancel}
+                      disabled={isAnalyzing}
+                      backgroundColor="#FDFAF6"
+                      borderColor="#FF3B30"
+                    >
+                      <Text 
+                        color="#FF3B30"
+                        fontSize={16}
+                        fontFamily="Baloo2SemiBold"
+                      >
+                        Cancel
+                      </Text>
+                    </AnimatedButton>
+                  </Stack>
+
+                  <Stack flex={1}>
+                    <AnimatedButton
+                      onPress={handleAnalyze}
+                      disabled={isAnalyzing}
+                      backgroundColor="#363636"
+                    >
+                      {isAnalyzing ? (
+                        <ActivityIndicator size="small" color="#FDFAF6" />
+                      ) : (
+                        <Text 
+                          color="#FDFAF6"
+                          fontSize={16}
+                          fontFamily="Baloo2SemiBold"
+                        >
+                          Analyze
+                        </Text>
+                      )}
+                    </AnimatedButton>
+                  </Stack>
+                </Stack>
+              </Stack>
+            )}
+          </Stack>
+        )}
+      </Stack>
+    </>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  cameraPrompt: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  promptTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  promptText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    color: '#666',
-  },
-  cameraButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 8,
-    backgroundColor: '#4CAF50',
-    width: '80%',
-  },
-  cameraButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  buttonIcon: {
-    marginRight: 10,
-  },
-  galleryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-    backgroundColor: '#fff',
-    width: '80%',
-  },
-  galleryButtonText: {
-    color: '#4CAF50',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  previewContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  previewImage: {
-    width: '100%',
-    height: '80%',
-    borderRadius: 12,
-    resizeMode: 'contain',
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 16,
-    marginRight: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ff3b30',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  cancelButtonText: {
-    color: '#ff3b30',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  analyzeButton: {
-    flex: 1,
-    padding: 16,
-    marginLeft: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    backgroundColor: '#4CAF50',
-  },
-  analyzeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-}); 
+} 

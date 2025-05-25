@@ -46,7 +46,13 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    // SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    // Baloo 2 fonts with proper naming
+    Baloo2Regular: require('../assets/fonts/Baloo2-Regular.ttf'),
+    Baloo2Medium: require('../assets/fonts/Baloo2-Medium.ttf'),
+    Baloo2SemiBold: require('../assets/fonts/Baloo2-SemiBold.ttf'),
+    Baloo2Bold: require('../assets/fonts/Baloo2-Bold.ttf'),
+    Baloo2ExtraBold: require('../assets/fonts/Baloo2-ExtraBold.ttf'),
+    // Keep existing fonts for compatibility
     Inter: require('@tamagui/font-inter/otf/Inter-Medium.otf'),
     InterBold: require('@tamagui/font-inter/otf/Inter-Bold.otf'),
   });

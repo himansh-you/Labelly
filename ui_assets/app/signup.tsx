@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { TouchableOpacity, TextInput, Keyboard, Platform, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, TextInput, Keyboard, Platform } from 'react-native';
 import { Stack, Text } from '@tamagui/core';
-import { router } from 'expo-router';
-import { useAuth } from '@/context/AuthContext';
-import { Logo } from '@/components/Logo';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
+import { useRouter } from 'expo-router';
+import { Logo, GoogleIcon } from '../components';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
   withTiming,
-  Easing 
+  Easing,
 } from 'react-native-reanimated';
 
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
 
-// Signup screen component
-export default function SignupScreen() {
+export default function SignUpScreen() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const { signUp, signIn } = useAuth();
   
   // Animated values
   const contentOffset = useSharedValue(0);
@@ -75,48 +71,18 @@ export default function SignupScreen() {
     transform: [{ translateY: contentOffset.value }],
   }));
 
-  const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { error } = await signUp(email, password);
-      if (error) {
-        Alert.alert('Error', error.message || 'Failed to create account');
-      } else {
-        console.log('Account created successfully');
-        // After successful signup, automatically sign in the user
-        const signInResult = await signIn(email, password);
-        if (signInResult.error) {
-          console.log('Auto sign-in failed:', signInResult.error);
-          Alert.alert(
-            'Account Created',
-            'Your account has been created successfully. Please log in.',
-            [{ text: 'OK', onPress: () => { router.navigate('/(auth)/login'); } }]
-          );
-        } else {
-          // User is now signed in - navigation should happen automatically
-          console.log('Auto sign-in successful');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      Alert.alert('Error', 'An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSignUp = () => {
+    // Handle sign up logic here
+    console.log('Sign up pressed');
   };
 
-  const navigateToLogin = () => {
-    router.push('/(auth)/login');
+  const handleGoogleSignUp = () => {
+    // Handle Google sign up logic here
+    console.log('Sign up with Google pressed');
+  };
+
+  const handleSignIn = () => {
+    router.push('/login');
   };
 
   return (
@@ -124,7 +90,7 @@ export default function SignupScreen() {
       <StatusBar style="dark" backgroundColor="#FDFAF6" />
       <Stack 
         flex={1} 
-        backgroundColor="#FDFAF6" 
+        backgroundColor="$background" 
         paddingHorizontal="$6"
         paddingTop="$12"
         paddingBottom="$6"
@@ -148,26 +114,26 @@ export default function SignupScreen() {
             <Text 
               fontSize={32}
               fontWeight="200" 
-              color="#363636" 
+              color="$color" 
               fontFamily="Baloo2Bold"
             >
-              Create Account
+              Sign Up
             </Text>
             
             <Text 
               fontSize={20} 
-              color="#363636" 
+              color="$color" 
               opacity={0.7}
               fontFamily="Baloo2Regular"
               lineHeight="$6"
             >
-              Sign up to get started with Labelly
+              Create your account to get started.
             </Text>
           </Stack>
 
           {/* Form Container */}
           <Stack 
-            backgroundColor="#FFFFFF" 
+            backgroundColor="$background" 
             borderRadius="$6" 
             borderWidth={1}
             borderColor="rgba(54, 54, 54, 0.1)"
@@ -179,7 +145,7 @@ export default function SignupScreen() {
               <Text 
                 fontSize={16}
                 fontWeight="600" 
-                color="#363636" 
+                color="$color" 
                 fontFamily="Baloo2SemiBold"
               >
                 Email
@@ -203,7 +169,6 @@ export default function SignupScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 returnKeyType="next"
-                autoComplete="email"
               />
             </Stack>
 
@@ -212,7 +177,7 @@ export default function SignupScreen() {
               <Text 
                 fontSize={16}
                 fontWeight="600" 
-                color="#363636" 
+                color="$color" 
                 fontFamily="Baloo2SemiBold"
               >
                 Password
@@ -229,95 +194,86 @@ export default function SignupScreen() {
                   backgroundColor: '#FFFFFF',
                   color: '#363636'
                 }}
-                placeholder="Create a password"
+                placeholder="Enter your password"
                 placeholderTextColor="#999999"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
-                returnKeyType="next"
-                autoComplete="password-new"
-              />
-            </Stack>
-
-            {/* Confirm Password Field */}
-            <Stack space="$2">
-              <Text 
-                fontSize={16}
-                fontWeight="600" 
-                color="#363636" 
-                fontFamily="Baloo2SemiBold"
-              >
-                Confirm Password
-              </Text>
-              <TextInput
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#E0E0E0',
-                  borderRadius: 8,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  fontSize: 16,
-                  fontFamily: 'Baloo2Regular',
-                  backgroundColor: '#FFFFFF',
-                  color: '#363636'
-                }}
-                placeholder="Confirm your password"
-                placeholderTextColor="#999999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
                 returnKeyType="done"
                 onSubmitEditing={handleSignUp}
-                autoComplete="password-new"
               />
             </Stack>
 
-            {/* Sign Up Button */}
+            {/* Sign Up Button - Same styling as Sign In */}
             <Stack marginTop="$4">
-              <TouchableOpacity onPress={handleSignUp} disabled={isLoading}>
+              <TouchableOpacity onPress={handleSignUp}>
                 <Stack 
                   paddingHorizontal="$6"
                   paddingVertical="$3"
-                  backgroundColor="#363636" 
+                  backgroundColor="$color" 
                   borderRadius="$12"
                   alignItems="center"
                 >
-                  {isLoading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text 
-                      color="#FFFFFF"
-                      fontWeight="600"
-                      fontSize={18}
-                      fontFamily="Baloo2SemiBold"
-                    >
-                      Create Account
-                    </Text>
-                  )}
+                  <Text 
+                    color="$background"
+                    fontWeight="600"
+                    fontSize={18}
+                    fontFamily="Baloo2SemiBold"
+                  >
+                    Sign Up
+                  </Text>
                 </Stack>
               </TouchableOpacity>
             </Stack>
 
-            {/* Login Link */}
-            <Stack alignItems="center" marginBottom={40}>
-              <Stack flexDirection="row" gap={4}>
+            {/* Google Sign Up Button - Same styling but white background */}
+            <Stack>
+              <TouchableOpacity onPress={handleGoogleSignUp}>
+                <Stack 
+                  paddingHorizontal="$6"
+                  paddingVertical="$3"
+                  backgroundColor="white"
+                  borderRadius="$12"
+                  borderWidth={1}
+                  borderColor="#E0E0E0"
+                  alignItems="center"
+                  flexDirection="row"
+                  justifyContent="center"
+                  gap={12}
+                >
+                  <GoogleIcon size={20} />
+                  <Text 
+                    color="#363636"
+                    fontWeight="600"
+                    fontSize={18}
+                    fontFamily="Baloo2SemiBold"
+                  >
+                    Sign up with Google
+                  </Text>
+                </Stack>
+              </TouchableOpacity>
+            </Stack>
+
+            {/* Sign In Link - Same position as login screen */}
+            <Stack alignItems="center" paddingTop="$2">
+              <Stack flexDirection="row" alignItems="center" gap={4}>
                 <Text 
                   fontSize={14}
-                  color="#363636"
+                  color="$color"
                   opacity={0.7}
                   fontFamily="Baloo2Regular"
                 >
                   Already have an account?
                 </Text>
-                <TouchableOpacity onPress={navigateToLogin}>
+                <TouchableOpacity onPress={handleSignIn}>
                   <Text 
                     fontSize={14}
-                    color="#363636"
+                    color="$color"
                     fontWeight="500"
                     textDecorationLine="underline"
                     fontFamily="Baloo2Medium"
                   >
-                    Log In
+                    Sign in
                   </Text>
                 </TouchableOpacity>
               </Stack>

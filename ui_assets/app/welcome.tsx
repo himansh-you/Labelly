@@ -95,9 +95,14 @@ export default function WelcomeScreen() {
             </Stack>
           </Stack>
 
-          {/* Button - at bottom (same as onboarding) */}
-          <Stack paddingBottom="$6">
-            <TouchableOpacity onPress={handleScanPress}>
+          {/* All Done Button */}
+          <Stack 
+            position="absolute"
+            bottom={40}
+            left={20}
+            right={20}
+          >
+            <TouchableOpacity onPress={() => router.push('/home')}>
               <Stack 
                 paddingHorizontal="$6"
                 paddingVertical="$3"
@@ -108,10 +113,10 @@ export default function WelcomeScreen() {
                 <Text 
                   color="$background"
                   fontWeight="600"
-                  fontSize={20}
+                  fontSize={18}
                   fontFamily="Baloo2SemiBold"
                 >
-                  Scan a label to begin
+                  All Done!
                 </Text>
               </Stack>
             </TouchableOpacity>

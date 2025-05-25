@@ -9,37 +9,38 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withTiming,
-  Easing 
+  withSpring,
+  Easing,
+  interpolate
 } from 'react-native-reanimated';
 
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
 
-// Signup screen component
-export default function SignupScreen() {
+export default function AuthScreen() {
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp, signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
   
   // Animated values
   const contentOffset = useSharedValue(0);
   const logoOpacity = useSharedValue(1);
+  const formTransition = useSharedValue(1); // Start at 1 (visible)
 
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (event) => {
-        // Move welcome content and form up
-        contentOffset.value = withTiming(-event.endCoordinates.height * 0.4, {
-          duration: Platform.OS === 'ios' ? 250 : 200,
-          easing: Easing.out(Easing.quad),
+        contentOffset.value = withSpring(-event.endCoordinates.height * 0.4, {
+          damping: 20,
+          stiffness: 300,
         });
         
-        // Fade out logo
         logoOpacity.value = withTiming(0, {
-          duration: Platform.OS === 'ios' ? 200 : 150,
-          easing: Easing.out(Easing.quad),
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
         });
       }
     );
@@ -47,16 +48,14 @@ export default function SignupScreen() {
     const keyboardWillHide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
-        // Return content to original position
-        contentOffset.value = withTiming(0, {
-          duration: Platform.OS === 'ios' ? 250 : 200,
-          easing: Easing.out(Easing.quad),
+        contentOffset.value = withSpring(0, {
+          damping: 20,
+          stiffness: 300,
         });
         
-        // Fade in logo
         logoOpacity.value = withTiming(1, {
-          duration: Platform.OS === 'ios' ? 200 : 150,
-          easing: Easing.out(Easing.quad),
+          duration: 400,
+          easing: Easing.out(Easing.cubic),
         });
       }
     );
@@ -67,6 +66,23 @@ export default function SignupScreen() {
     };
   }, []);
 
+  // Smooth transition when switching between login/signup
+  useEffect(() => {
+    // Fade out entire form
+    formTransition.value = withTiming(0, {
+      duration: 250,
+      easing: Easing.inOut(Easing.cubic),
+    });
+
+    // Switch content and fade back in
+    setTimeout(() => {
+      formTransition.value = withSpring(1, {
+        damping: 18,
+        stiffness: 200,
+      });
+    }, 250);
+  }, [isSignUp]);
+
   const logoAnimatedStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
   }));
@@ -75,36 +91,59 @@ export default function SignupScreen() {
     transform: [{ translateY: contentOffset.value }],
   }));
 
-  const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const formAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: formTransition.value,
+    transform: [
+      { translateY: interpolate(formTransition.value, [0, 1], [30, 0]) },
+      { scale: interpolate(formTransition.value, [0, 1], [0.95, 1]) },
+    ],
+  }));
+
+  const handlePrimaryAction = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (isSignUp && password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+
+    if (isSignUp && !confirmPassword) {
+      Alert.alert('Error', 'Please confirm your password');
       return;
     }
 
     setIsLoading(true);
     try {
-      const { error } = await signUp(email, password);
-      if (error) {
-        Alert.alert('Error', error.message || 'Failed to create account');
-      } else {
-        console.log('Account created successfully');
-        // After successful signup, automatically sign in the user
-        const signInResult = await signIn(email, password);
-        if (signInResult.error) {
-          console.log('Auto sign-in failed:', signInResult.error);
-          Alert.alert(
-            'Account Created',
-            'Your account has been created successfully. Please log in.',
-            [{ text: 'OK', onPress: () => { router.navigate('/(auth)/login'); } }]
-          );
+      if (isSignUp) {
+        // Sign up flow
+        const { error } = await signUp(email, password);
+        if (error) {
+          Alert.alert('Error', error.message || 'Failed to create account');
         } else {
-          // User is now signed in - navigation should happen automatically
-          console.log('Auto sign-in successful');
+          console.log('Account created successfully');
+          // After successful signup, automatically sign in the user
+          const signInResult = await signIn(email, password);
+          if (signInResult.error) {
+            console.log('Auto sign-in failed:', signInResult.error);
+            Alert.alert(
+              'Account Created',
+              'Your account has been created successfully. Please log in.',
+              [{ text: 'OK', onPress: () => setIsSignUp(false) }]
+            );
+          } else {
+            console.log('Auto sign-in successful');
+          }
+        }
+      } else {
+        // Sign in flow
+        const { error } = await signIn(email, password);
+        if (error) {
+          Alert.alert('Error', error.message || 'Failed to sign in');
+        } else {
+          console.log('Login successful');
         }
       }
     } catch (err) {
@@ -115,8 +154,16 @@ export default function SignupScreen() {
     }
   };
 
-  const navigateToLogin = () => {
-    router.push('/(auth)/login');
+  const handleSecondaryAction = () => {
+    // Clear form and switch mode
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setIsSignUp(!isSignUp);
+  };
+
+  const handleForgotPassword = () => {
+    console.log('Forgot password pressed');
   };
 
   return (
@@ -129,7 +176,7 @@ export default function SignupScreen() {
         paddingTop="$12"
         paddingBottom="$6"
       >
-        {/* Logo - Fades out */}
+        {/* Logo - Enhanced fade with scale */}
         <AnimatedStack 
           alignItems="center" 
           marginBottom="$10"
@@ -138,9 +185,9 @@ export default function SignupScreen() {
           <Logo width={200} height={67} color="#363636" />
         </AnimatedStack>
 
-        {/* Welcome Content + Form - Move up together */}
+        {/* Welcome Content + Form - Single unified animation */}
         <AnimatedStack 
-          style={contentAnimatedStyle}
+          style={[contentAnimatedStyle, formAnimatedStyle]}
           flex={1}
         >
           {/* Welcome Content */}
@@ -151,7 +198,7 @@ export default function SignupScreen() {
               color="#363636" 
               fontFamily="Baloo2Bold"
             >
-              Create Account
+              {isSignUp ? 'Create Account' : 'Welcome Back!'}
             </Text>
             
             <Text 
@@ -161,7 +208,10 @@ export default function SignupScreen() {
               fontFamily="Baloo2Regular"
               lineHeight="$6"
             >
-              Sign up to get started with Labelly
+              {isSignUp 
+                ? 'Sign up to get started with Labelly'
+                : 'Enter your email and password to sign in to your account.'
+              }
             </Text>
           </Stack>
 
@@ -209,14 +259,33 @@ export default function SignupScreen() {
 
             {/* Password Field */}
             <Stack space="$2">
-              <Text 
-                fontSize={16}
-                fontWeight="600" 
-                color="#363636" 
-                fontFamily="Baloo2SemiBold"
+              <Stack 
+                flexDirection="row" 
+                justifyContent="space-between" 
+                alignItems="center"
               >
-                Password
-              </Text>
+                <Text 
+                  fontSize={16}
+                  fontWeight="600" 
+                  color="#363636" 
+                  fontFamily="Baloo2SemiBold"
+                >
+                  Password
+                </Text>
+                {!isSignUp && (
+                  <TouchableOpacity onPress={handleForgotPassword}>
+                    <Text 
+                      fontSize={14}
+                      color="#363636" 
+                      fontFamily="Baloo2Regular"
+                      textDecorationLine="underline"
+                      opacity={0.7}
+                    >
+                      Forgot password?
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </Stack>
               <TextInput
                 style={{
                   borderWidth: 1,
@@ -229,52 +298,55 @@ export default function SignupScreen() {
                   backgroundColor: '#FFFFFF',
                   color: '#363636'
                 }}
-                placeholder="Create a password"
+                placeholder={isSignUp ? "Create a password" : "Enter your password"}
                 placeholderTextColor="#999999"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
-                returnKeyType="next"
-                autoComplete="password-new"
+                returnKeyType={isSignUp ? "next" : "done"}
+                onSubmitEditing={isSignUp ? undefined : handlePrimaryAction}
+                autoComplete={isSignUp ? "password-new" : "password"}
               />
             </Stack>
 
-            {/* Confirm Password Field */}
-            <Stack space="$2">
-              <Text 
-                fontSize={16}
-                fontWeight="600" 
-                color="#363636" 
-                fontFamily="Baloo2SemiBold"
-              >
-                Confirm Password
-              </Text>
-              <TextInput
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#E0E0E0',
-                  borderRadius: 8,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                  fontSize: 16,
-                  fontFamily: 'Baloo2Regular',
-                  backgroundColor: '#FFFFFF',
-                  color: '#363636'
-                }}
-                placeholder="Confirm your password"
-                placeholderTextColor="#999999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                returnKeyType="done"
-                onSubmitEditing={handleSignUp}
-                autoComplete="password-new"
-              />
-            </Stack>
+            {/* Confirm Password Field - Only for Sign Up */}
+            {isSignUp && (
+              <Stack space="$2">
+                <Text 
+                  fontSize={16}
+                  fontWeight="600" 
+                  color="#363636" 
+                  fontFamily="Baloo2SemiBold"
+                >
+                  Confirm Password
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#E0E0E0',
+                    borderRadius: 8,
+                    paddingHorizontal: 16,
+                    paddingVertical: 12,
+                    fontSize: 16,
+                    fontFamily: 'Baloo2Regular',
+                    backgroundColor: '#FFFFFF',
+                    color: '#363636'
+                  }}
+                  placeholder="Confirm your password"
+                  placeholderTextColor="#999999"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  returnKeyType="done"
+                  onSubmitEditing={handlePrimaryAction}
+                  autoComplete="password-new"
+                />
+              </Stack>
+            )}
 
-            {/* Sign Up Button */}
+            {/* Primary Action Button */}
             <Stack marginTop="$4">
-              <TouchableOpacity onPress={handleSignUp} disabled={isLoading}>
+              <TouchableOpacity onPress={handlePrimaryAction} disabled={isLoading}>
                 <Stack 
                   paddingHorizontal="$6"
                   paddingVertical="$3"
@@ -291,14 +363,14 @@ export default function SignupScreen() {
                       fontSize={18}
                       fontFamily="Baloo2SemiBold"
                     >
-                      Create Account
+                      {isSignUp ? 'Create Account' : 'Sign In'}
                     </Text>
                   )}
                 </Stack>
               </TouchableOpacity>
             </Stack>
 
-            {/* Login Link */}
+            {/* Switch Mode Link */}
             <Stack alignItems="center" marginBottom={40}>
               <Stack flexDirection="row" gap={4}>
                 <Text 
@@ -307,9 +379,9 @@ export default function SignupScreen() {
                   opacity={0.7}
                   fontFamily="Baloo2Regular"
                 >
-                  Already have an account?
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}
                 </Text>
-                <TouchableOpacity onPress={navigateToLogin}>
+                <TouchableOpacity onPress={handleSecondaryAction}>
                   <Text 
                     fontSize={14}
                     color="#363636"
@@ -317,7 +389,7 @@ export default function SignupScreen() {
                     textDecorationLine="underline"
                     fontFamily="Baloo2Medium"
                   >
-                    Log In
+                    {isSignUp ? 'Sign In' : 'Sign Up'}
                   </Text>
                 </TouchableOpacity>
               </Stack>
