@@ -176,6 +176,12 @@ export default function ResultScreen() {
             source={{ uri: displayImageUri }}
             style={styles.image}
             defaultSource={require('@/assets/placeholder.png')}
+            onError={(error) => {
+              console.error('Image loading error in result screen:', error);
+            }}
+            onLoad={() => {
+              console.log('Result image loaded successfully');
+            }}
           />
         </View>
       )}
@@ -241,7 +247,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#000',
+    backgroundColor: '#f0f0f0',
   },
   image: {
     flex: 1,

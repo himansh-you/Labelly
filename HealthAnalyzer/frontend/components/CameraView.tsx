@@ -16,7 +16,7 @@ import Animated, {
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface CameraViewProps {
-  onImageCaptured: (image: { uri: string }) => void;
+  onImageCaptured: (image: { uri: string }) => void | Promise<void>;
   onClose: () => void;
 }
 
