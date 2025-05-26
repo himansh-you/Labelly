@@ -17,18 +17,20 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withSpring,
+  withTiming,
   runOnJS
 } from 'react-native-reanimated';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-// Animated Button Component
+// Enhanced Animated Button Component matching app design
 interface AnimatedButtonProps {
   onPress: () => void;
   disabled?: boolean;
   backgroundColor: string;
   children: React.ReactNode;
   borderColor?: string;
+  variant?: 'primary' | 'secondary';
 }
 
 const AnimatedButton: React.FC<AnimatedButtonProps> = ({ 
@@ -36,28 +38,39 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   disabled = false, 
   backgroundColor, 
   children, 
-  borderColor 
+  borderColor,
+  variant = 'primary'
 }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const shadowOpacity = useSharedValue(0.15);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
 
+  const shadowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: shadowOpacity.value,
+    elevation: shadowOpacity.value * 20,
+  }));
+
   const handlePressIn = () => {
-    if (!disabled) {
-      scale.value = withSpring(0.95);
-      opacity.value = 0.8;
-    }
+    scale.value = withSpring(0.96, {
+      damping: 20,
+      stiffness: 400,
+    });
+    opacity.value = withTiming(0.9, { duration: 150 });
+    shadowOpacity.value = withTiming(0.05, { duration: 150 });
   };
 
   const handlePressOut = () => {
-    if (!disabled) {
-      scale.value = withSpring(1);
-      opacity.value = 1;
-    }
+    scale.value = withSpring(1, {
+      damping: 18,
+      stiffness: 350,
+    });
+    opacity.value = withTiming(1, { duration: 200 });
+    shadowOpacity.value = withTiming(0.15, { duration: 200 });
   };
 
   const handlePress = () => {
@@ -72,22 +85,29 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
-      style={animatedStyle}
+      style={[
+        {
+          flex: 1,
+          borderRadius: 16,
+          paddingVertical: 16,
+          paddingHorizontal: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor,
+          borderWidth: borderColor ? 2 : 0,
+          borderColor: borderColor || 'transparent',
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowRadius: 8,
+          minHeight: 56,
+        },
+        animatedStyle,
+        shadowStyle,
+        disabled && { opacity: 0.6 }
+      ]}
+      activeOpacity={1}
     >
-      <Stack
-        backgroundColor={backgroundColor}
-        borderRadius="$4"
-        paddingVertical="$4"
-        paddingHorizontal="$6"
-        alignItems="center"
-        justifyContent="center"
-        borderWidth={borderColor ? 2 : 0}
-        borderColor={borderColor}
-        opacity={disabled ? 0.6 : 1}
-        minHeight={56}
-      >
-        {children}
-      </Stack>
+      {children}
     </AnimatedTouchableOpacity>
   );
 };
@@ -110,10 +130,7 @@ export default function ScanScreen() {
     console.log('Image captured:', image.uri);
     if (image.uri) {
       try {
-        // Copy image to permanent location first
         const permanentUri = await copyImageToPermanentLocation(image.uri);
-        
-        // Process and verify the permanent URI
         const processedUri = processImageUri(permanentUri);
         const isValid = await verifyImageUri(processedUri);
         
@@ -146,10 +163,7 @@ export default function ScanScreen() {
         console.log('Gallery image selected:', result.assets[0].uri);
         
         try {
-          // Copy gallery image to permanent location first
           const permanentUri = await copyImageToPermanentLocation(result.assets[0].uri);
-          
-          // Process and verify the permanent URI
           const processedUri = processImageUri(permanentUri);
           const isValid = await verifyImageUri(processedUri);
           
@@ -207,6 +221,11 @@ export default function ScanScreen() {
     setImageUri(null);
   };
 
+  const handleRetake = () => {
+    setImageUri(null);
+    setShowCamera(true);
+  };
+
   const startCamera = () => {
     setShowCamera(true);
   };
@@ -227,17 +246,19 @@ export default function ScanScreen() {
           <CameraView
             onImageCaptured={handleImageCaptured}
             onClose={closeCamera}
+            onGalleryPress={handleImageFromGallery}
           />
         ) : (
-          <Stack flex={1} paddingHorizontal="$6" paddingTop="$12" paddingBottom="$6">
-            {/* Back Button */}
+          <Stack flex={1} paddingHorizontal="$5" paddingTop="$12" paddingBottom="$6">
+            {/* Enhanced Back Button */}
             <Stack marginBottom="$6">
-              <TouchableOpacity onPress={handleBack}>
+              <TouchableOpacity onPress={handleBack} activeOpacity={0.7}>
                 <Stack 
                   flexDirection="row" 
                   alignItems="center" 
                   space="$2"
-                  paddingVertical="$2"
+                  paddingVertical="$3"
+                  paddingHorizontal="$2"
                 >
                   <Ionicons name="arrow-back" size={24} color="#363636" />
                   <Text 
@@ -252,29 +273,27 @@ export default function ScanScreen() {
             </Stack>
 
             {!imageUri ? (
-              <Stack flex={1} justifyContent="center" alignItems="center" space="$6">
-                {/* Title and Description */}
-                <Stack alignItems="center" space="$3">
-                  <Text 
-                    fontSize={32}
-                    fontWeight="600" 
-                    color="#363636" 
+              // Camera/Gallery Selection Screen
+              <Stack flex={1} justifyContent="center" alignItems="center" space="$8">
+                {/* Title Section */}
+                <Stack alignItems="center" space="$4">
+                  <Text
+                    fontSize={28}
+                    fontWeight="600"
+                    color="#363636"
+                    fontFamily="Baloo2SemiBold"
                     textAlign="center"
-                    fontFamily="Baloo2Bold"
                   >
-                    Scan Product Ingredients
+                    Scan Product
                   </Text>
-                  
-                  <Text 
-                    fontSize={20} 
-                    color="#363636" 
-                    textAlign="center" 
-                    opacity={0.7}
-                    maxWidth={350}
+                  <Text
+                    fontSize={16}
+                    color="#666"
                     fontFamily="Baloo2Regular"
-                    lineHeight="$6"
+                    textAlign="center"
+                    lineHeight={22}
                   >
-                    Take a clear photo of the product's ingredient list to analyze its healthiness
+                    Take a photo or select from gallery to analyze ingredients
                   </Text>
                 </Stack>
 
@@ -282,20 +301,25 @@ export default function ScanScreen() {
                 <Stack 
                   width={120} 
                   height={120} 
-                  backgroundColor="#363636" 
+                  backgroundColor="#D3D3D3" 
                   borderRadius={60} 
                   alignItems="center" 
                   justifyContent="center"
-                  marginVertical="$4"
+                  shadowColor="#000"
+                  shadowOffset={{ width: 0, height: 4 }}
+                  shadowOpacity={0.1}
+                  shadowRadius={8}
+                  elevation={5}
                 >
-                  <Ionicons name="camera" size={48} color="#FDFAF6" />
+                  <Ionicons name="camera" size={48} color="#363636" />
                 </Stack>
 
                 {/* Action Buttons */}
-                <Stack width="100%" space="$4" paddingHorizontal="$4">
+                <Stack width="100%" space="$4" paddingHorizontal="$2">
                   <AnimatedButton
                     onPress={startCamera}
                     backgroundColor="#363636"
+                    variant="primary"
                   >
                     <Stack flexDirection="row" alignItems="center" space="$3">
                       <Ionicons name="camera" size={24} color="#FDFAF6" />
@@ -313,6 +337,7 @@ export default function ScanScreen() {
                     onPress={handleImageFromGallery}
                     backgroundColor="#FDFAF6"
                     borderColor="#363636"
+                    variant="secondary"
                   >
                     <Stack flexDirection="row" alignItems="center" space="$3">
                       <Ionicons name="images" size={20} color="#363636" />
@@ -328,8 +353,29 @@ export default function ScanScreen() {
                 </Stack>
               </Stack>
             ) : (
+              // Image Preview and Analysis Screen
               <Stack flex={1} space="$6">
-                {/* Image Preview */}
+                {/* Title */}
+                <Stack alignItems="center" marginBottom="$4">
+                  <Text
+                    fontSize={24}
+                    fontWeight="600"
+                    color="#363636"
+                    fontFamily="Baloo2SemiBold"
+                  >
+                    Review Image
+                  </Text>
+                  <Text
+                    fontSize={14}
+                    color="#666"
+                    fontFamily="Baloo2Regular"
+                    textAlign="center"
+                  >
+                    Make sure the nutrition label is clear and readable
+                  </Text>
+                </Stack>
+
+                {/* Enhanced Image Preview */}
                 <Stack 
                   flex={1} 
                   justifyContent="center" 
@@ -339,6 +385,11 @@ export default function ScanScreen() {
                   padding="$4"
                   borderWidth={1}
                   borderColor="rgba(54, 54, 54, 0.1)"
+                  shadowColor="#000"
+                  shadowOffset={{ width: 0, height: 2 }}
+                  shadowOpacity={0.1}
+                  shadowRadius={8}
+                  elevation={3}
                 >
                   <Image
                     source={{ uri: imageUri }}
@@ -359,41 +410,98 @@ export default function ScanScreen() {
                   />
                 </Stack>
 
-                {/* Action Buttons */}
-                <Stack flexDirection="row" space="$4">
-                  <Stack flex={1}>
+                {/* Enhanced Action Buttons with Retake Option */}
+                <Stack space="$3" paddingHorizontal="$2">
+                  {/* Top Row: Retake and Gallery */}
+                  <Stack flexDirection="row" space="$3">
+                    <AnimatedButton
+                      onPress={handleRetake}
+                      disabled={isAnalyzing}
+                      backgroundColor="#FDFAF6"
+                      borderColor="#007AFF"
+                      variant="secondary"
+                    >
+                      <Stack flexDirection="row" alignItems="center" space="$2">
+                        <Ionicons name="camera-reverse" size={20} color="#007AFF" />
+                        <Text 
+                          color="#007AFF"
+                          fontSize={16}
+                          fontFamily="Baloo2SemiBold"
+                        >
+                          Retake
+                        </Text>
+                      </Stack>
+                    </AnimatedButton>
+
+                    <AnimatedButton
+                      onPress={handleImageFromGallery}
+                      disabled={isAnalyzing}
+                      backgroundColor="#FDFAF6"
+                      borderColor="#666"
+                      variant="secondary"
+                    >
+                      <Stack flexDirection="row" alignItems="center" space="$2">
+                        <Ionicons name="images" size={18} color="#666" />
+                        <Text 
+                          color="#666"
+                          fontSize={16}
+                          fontFamily="Baloo2SemiBold"
+                        >
+                          Gallery
+                        </Text>
+                      </Stack>
+                    </AnimatedButton>
+                  </Stack>
+
+                  {/* Bottom Row: Cancel and Analyze */}
+                  <Stack flexDirection="row" space="$3">
                     <AnimatedButton
                       onPress={handleCancel}
                       disabled={isAnalyzing}
                       backgroundColor="#FDFAF6"
                       borderColor="#FF3B30"
+                      variant="secondary"
                     >
-                      <Text 
-                        color="#FF3B30"
-                        fontSize={16}
-                        fontFamily="Baloo2SemiBold"
-                      >
-                        Cancel
-                      </Text>
+                      <Stack flexDirection="row" alignItems="center" space="$2">
+                        <Ionicons name="close-circle-outline" size={20} color="#FF3B30" />
+                        <Text 
+                          color="#FF3B30"
+                          fontSize={16}
+                          fontFamily="Baloo2SemiBold"
+                        >
+                          Cancel
+                        </Text>
+                      </Stack>
                     </AnimatedButton>
-                  </Stack>
 
-                  <Stack flex={1}>
                     <AnimatedButton
                       onPress={handleAnalyze}
                       disabled={isAnalyzing}
                       backgroundColor="#363636"
+                      variant="primary"
                     >
                       {isAnalyzing ? (
-                        <ActivityIndicator size="small" color="#FDFAF6" />
+                        <Stack flexDirection="row" alignItems="center" space="$3">
+                          <ActivityIndicator size="small" color="#FDFAF6" />
+                          <Text 
+                            color="#FDFAF6"
+                            fontSize={16}
+                            fontFamily="Baloo2SemiBold"
+                          >
+                            Analyzing...
+                          </Text>
+                        </Stack>
                       ) : (
-                        <Text 
-                          color="#FDFAF6"
-                          fontSize={16}
-                          fontFamily="Baloo2SemiBold"
-                        >
-                          Analyze
-                        </Text>
+                        <Stack flexDirection="row" alignItems="center" space="$3">
+                          <Ionicons name="analytics" size={20} color="#FDFAF6" />
+                          <Text 
+                            color="#FDFAF6"
+                            fontSize={16}
+                            fontFamily="Baloo2SemiBold"
+                          >
+                            Analyze
+                          </Text>
+                        </Stack>
                       )}
                     </AnimatedButton>
                   </Stack>

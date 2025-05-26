@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Image, Alert, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Stack, 
@@ -19,8 +20,10 @@ import Animated, {
   useSharedValue, 
   useAnimatedStyle, 
   withSpring,
+  withTiming,
   runOnJS
 } from 'react-native-reanimated';
+import { IngredientAccordion } from '@/components/IngredientAccordion';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -210,52 +213,26 @@ const TabNavigation = ({
 const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisData: AnalysisResult }) => {
   if (activeTab === 'Ingredients') {
     return (
-      <YStack space="$2">
-        {/* Safe Ingredients */}
-        <IngredientCategory
-          title="Safe Ingredients"
-          percentage={analysisData.ingredient_categories.safe.percentage}
-          ingredients={analysisData.ingredient_categories.safe.ingredients}
-          borderColor="#4CAF50"
-        />
-
-        {/* Low Risk Ingredients */}
-        <IngredientCategory
-          title="Low Risk Ingredients"
-          percentage={analysisData.ingredient_categories.low_risk.percentage}
-          ingredients={analysisData.ingredient_categories.low_risk.ingredients}
-          borderColor="#FFC107"
-        />
-
-        {/* Not Great Ingredients */}
-        <IngredientCategory
-          title="Not Great Ingredients"
-          percentage={analysisData.ingredient_categories.not_great.percentage}
-          ingredients={analysisData.ingredient_categories.not_great.ingredients}
-          borderColor="#FF9800"
-        />
-
-        {/* Dangerous Ingredients */}
-        <IngredientCategory
-          title="Dangerous Ingredients"
-          percentage={analysisData.ingredient_categories.dangerous.percentage}
-          ingredients={analysisData.ingredient_categories.dangerous.ingredients}
-          borderColor="#F44336"
-        />
-
-        {/* Summary matching reference layout */}
-        <YStack 
-          backgroundColor="#F0F0F0" 
-          borderRadius="$4" 
-          padding="$4" 
-          marginTop="$4"
-        >
-          <Text fontSize={16} fontWeight="600" color="#333" marginBottom="$3" fontFamily="Baloo2SemiBold">Summary</Text>
-          <Text fontSize={14} lineHeight={20} color="#333" fontFamily="Baloo2Regular">
-            {analysisData.ingredients_summary}
+      <Stack space="$4">
+        {/* Safety Bar - keep existing */}
+        <Stack space="$3">
+          <Text fontSize={16} fontFamily="Baloo2SemiBold" color="#363636">
+            Safety Overview
           </Text>
-        </YStack>
-      </YStack>
+          
+          {/* Your existing safety bar component */}
+          <SafetyBar analysisData={analysisData} />
+        </Stack>
+
+        {/* New Accordion Component */}
+        <Stack space="$3">
+          <Text fontSize={16} fontFamily="Baloo2SemiBold" color="#363636">
+            Ingredient Analysis
+          </Text>
+          
+          <IngredientAccordion data={analysisData} />
+        </Stack>
+      </Stack>
     );
   }
 
@@ -286,13 +263,14 @@ const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisD
   return null;
 };
 
-// Animated Button Component matching your scan screen
+// Enhanced Animated Button Component matching scan page design
 interface AnimatedButtonProps {
   onPress: () => void;
   disabled?: boolean;
   backgroundColor: string;
   children: React.ReactNode;
   borderColor?: string;
+  variant?: 'primary' | 'secondary';
 }
 
 const AnimatedButton: React.FC<AnimatedButtonProps> = ({ 
@@ -300,28 +278,39 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   disabled = false, 
   backgroundColor, 
   children, 
-  borderColor 
+  borderColor,
+  variant = 'primary'
 }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const shadowOpacity = useSharedValue(0.15);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
 
+  const shadowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: shadowOpacity.value,
+    elevation: shadowOpacity.value * 20,
+  }));
+
   const handlePressIn = () => {
-    if (!disabled) {
-      scale.value = withSpring(0.95);
-      opacity.value = 0.8;
-    }
+    scale.value = withSpring(0.96, {
+      damping: 20,
+      stiffness: 400,
+    });
+    opacity.value = 0.9;
+    shadowOpacity.value = 0.05;
   };
 
   const handlePressOut = () => {
-    if (!disabled) {
-      scale.value = withSpring(1);
-      opacity.value = 1;
-    }
+    scale.value = withSpring(1, {
+      damping: 18,
+      stiffness: 350,
+    });
+    opacity.value = 1;
+    shadowOpacity.value = 0.15;
   };
 
   const handlePress = () => {
@@ -336,22 +325,29 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
-      style={animatedStyle}
+      style={[
+        {
+          flex: 1,
+          borderRadius: 16,
+          paddingVertical: 16,
+          paddingHorizontal: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor,
+          borderWidth: borderColor ? 2 : 0,
+          borderColor: borderColor || 'transparent',
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowRadius: 8,
+          minHeight: 56,
+        },
+        animatedStyle,
+        shadowStyle,
+        disabled && { opacity: 0.6 }
+      ]}
+      activeOpacity={1}
     >
-      <Stack
-        backgroundColor={backgroundColor}
-        borderRadius="$4"
-        paddingVertical="$4"
-        paddingHorizontal="$6"
-        alignItems="center"
-        justifyContent="center"
-        borderWidth={borderColor ? 2 : 0}
-        borderColor={borderColor}
-        opacity={disabled ? 0.6 : 1}
-        minHeight={56}
-      >
-        {children}
-      </Stack>
+      {children}
     </AnimatedTouchableOpacity>
   );
 };
@@ -522,9 +518,24 @@ export default function ResultScreen() {
         <FontAwesome name="exclamation-triangle" size={50} color="#ff3b30" />
         <Text marginTop="$4" fontSize={20} fontWeight="bold" color="#ff3b30" fontFamily="Baloo2Bold">Error</Text>
         <Text marginTop="$2" fontSize={16} color="#666" textAlign="center" fontFamily="Baloo2Regular">{error}</Text>
-        <Button marginTop="$6" onPress={handleNewScan} backgroundColor="#4CAF50" fontFamily="Baloo2SemiBold">
-          Try a New Scan
-        </Button>
+        <Stack marginTop="$6" width="100%" maxWidth={200}>
+          <AnimatedButton 
+            onPress={handleNewScan} 
+            backgroundColor="#363636"
+            variant="primary"
+          >
+            <Stack flexDirection="row" alignItems="center" space="$3">
+              <Ionicons name="refresh" size={20} color="#FDFAF6" />
+              <Text 
+                color="#FDFAF6"
+                fontSize={16}
+                fontFamily="Baloo2SemiBold"
+              >
+                Try a New Scan
+              </Text>
+            </Stack>
+          </AnimatedButton>
+        </Stack>
       </Stack>
     );
   }
@@ -533,9 +544,24 @@ export default function ResultScreen() {
     return (
       <Stack flex={1} backgroundColor="#f8f8f8" alignItems="center" justifyContent="center" padding="$6">
         <Text fontSize={16} fontFamily="Baloo2Regular">No analysis result found.</Text>
-        <Button marginTop="$4" onPress={handleNewScan} backgroundColor="#4CAF50" fontFamily="Baloo2SemiBold">
-          Try a New Scan
-        </Button>
+        <Stack marginTop="$4" width="100%" maxWidth={200}>
+          <AnimatedButton 
+            onPress={handleNewScan} 
+            backgroundColor="#363636"
+            variant="primary"
+          >
+            <Stack flexDirection="row" alignItems="center" space="$3">
+              <Ionicons name="camera" size={20} color="#FDFAF6" />
+              <Text 
+                color="#FDFAF6"
+                fontSize={16}
+                fontFamily="Baloo2SemiBold"
+              >
+                Try a New Scan
+              </Text>
+            </Stack>
+          </AnimatedButton>
+        </Stack>
       </Stack>
     );
   }
@@ -631,9 +657,6 @@ export default function ResultScreen() {
                   {/* Tab Navigation */}
                   <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-                  {/* Safety Bar */}
-                  <SafetyBar analysisData={analysisData} />
-
                   {/* Content based on active tab */}
                   <TabContent activeTab={activeTab} analysisData={analysisData} />
                 </YStack>
@@ -661,40 +684,41 @@ export default function ResultScreen() {
               >
                 <XStack space="$4">
                   {/* Back Button */}
-                  <Stack flex={1}>
-                    <AnimatedButton
-                      onPress={handleBack}
-                      backgroundColor="#FDFAF6"
-                      borderColor="#363636"
-                    >
+                  <AnimatedButton
+                    onPress={handleBack}
+                    backgroundColor="#FDFAF6"
+                    borderColor="#363636"
+                    variant="secondary"
+                  >
+                    <Stack flexDirection="row" alignItems="center" space="$3">
+                      <Ionicons name="arrow-back" size={20} color="#363636" />
                       <Text 
                         color="#363636"
                         fontSize={16}
                         fontFamily="Baloo2SemiBold"
                       >
                         Back
-              </Text>
-                    </AnimatedButton>
-                  </Stack>
+                      </Text>
+                    </Stack>
+                  </AnimatedButton>
 
                   {/* New Scan Button */}
-                  <Stack flex={1}>
-                    <AnimatedButton
-                      onPress={handleNewScan}
-                      backgroundColor="#363636"
-                    >
-                      <XStack alignItems="center" space="$2">
-                        <FontAwesome name="camera" size={18} color="#FDFAF6" />
-                        <Text 
-                          color="#FDFAF6"
-                          fontSize={16}
-                          fontFamily="Baloo2SemiBold"
-                        >
-                          New Scan
-                        </Text>
-                      </XStack>
-                    </AnimatedButton>
-                  </Stack>
+                  <AnimatedButton
+                    onPress={handleNewScan}
+                    backgroundColor="#363636"
+                    variant="primary"
+                  >
+                    <Stack flexDirection="row" alignItems="center" space="$3">
+                      <Ionicons name="camera" size={20} color="#FDFAF6" />
+                      <Text 
+                        color="#FDFAF6"
+                        fontSize={16}
+                        fontFamily="Baloo2SemiBold"
+                      >
+                        New Scan
+                      </Text>
+                    </Stack>
+                  </AnimatedButton>
                 </XStack>
               </Stack>
             </YStack>

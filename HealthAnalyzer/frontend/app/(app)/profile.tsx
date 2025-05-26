@@ -287,7 +287,7 @@ const MenuItem: React.FC<MenuItemProps> = ({
   );
 };
 
-// Enhanced Animated Button Component
+// Enhanced Animated Button Component matching scan page design
 interface AnimatedButtonProps {
   onPress: () => void;
   backgroundColor: string;
@@ -295,6 +295,7 @@ interface AnimatedButtonProps {
   children: React.ReactNode;
   borderColor?: string;
   isDestructive?: boolean;
+  variant?: 'primary' | 'secondary';
 }
 
 const AnimatedButton: React.FC<AnimatedButtonProps> = ({ 
@@ -303,79 +304,43 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
   textColor, 
   children, 
   borderColor,
-  isDestructive = false
+  isDestructive = false,
+  variant = 'primary'
 }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
-  const shadowOpacity = useSharedValue(0.1);
-  const translateY = useSharedValue(0);
-  const buttonOpacity = useSharedValue(1);
+  const shadowOpacity = useSharedValue(0.15);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value }
-    ],
+    transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
 
   const shadowStyle = useAnimatedStyle(() => ({
     shadowOpacity: shadowOpacity.value,
-    elevation: interpolate(shadowOpacity.value, [0.1, 0.3], [3, 10]),
-  }));
-
-  const buttonStyle = useAnimatedStyle(() => ({
-    opacity: buttonOpacity.value,
+    elevation: shadowOpacity.value * 20,
   }));
 
   const handlePressIn = () => {
-    scale.value = withSpring(0.95, {
+    scale.value = withSpring(0.96, {
       damping: 20,
       stiffness: 400,
     });
-    opacity.value = withTiming(0.9, {
-      duration: 100,
-      easing: Easing.out(Easing.quad),
-    });
-    shadowOpacity.value = withTiming(isDestructive ? 0.3 : 0.2, {
-      duration: 100,
-      easing: Easing.out(Easing.quad),
-    });
-    translateY.value = withTiming(1, {
-      duration: 100,
-      easing: Easing.out(Easing.quad),
-    });
-    buttonOpacity.value = withTiming(0.9, {
-      duration: 100,
-      easing: Easing.out(Easing.quad),
-    });
+    opacity.value = withTiming(0.9, { duration: 150 });
+    shadowOpacity.value = withTiming(isDestructive ? 0.25 : 0.05, { duration: 150 });
   };
 
   const handlePressOut = () => {
     scale.value = withSpring(1, {
-      damping: 20,
-      stiffness: 400,
+      damping: 18,
+      stiffness: 350,
     });
-    opacity.value = withTiming(1, {
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-    });
-    shadowOpacity.value = withTiming(0.1, {
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-    });
-    translateY.value = withTiming(0, {
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-    });
-    buttonOpacity.value = withTiming(1, {
-      duration: 150,
-      easing: Easing.out(Easing.quad),
-    });
+    opacity.value = withTiming(1, { duration: 200 });
+    shadowOpacity.value = withTiming(0.15, { duration: 200 });
   };
 
   const handlePress = () => {
-    // Add a satisfying press effect
+    // Add a satisfying tap effect
     scale.value = withSpring(0.92, {
       damping: 25,
       stiffness: 500,
@@ -395,27 +360,27 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={animatedStyle}
+      style={[
+        {
+          borderRadius: 16,
+          paddingVertical: 16,
+          paddingHorizontal: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor,
+          borderWidth: borderColor ? 2 : 0,
+          borderColor: borderColor || 'transparent',
+          shadowColor: isDestructive ? "#FF3B30" : "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowRadius: 8,
+          minHeight: 56,
+        },
+        animatedStyle,
+        shadowStyle,
+      ]}
+      activeOpacity={1}
     >
-      <Animated.View style={shadowStyle}>
-        <Animated.View style={buttonStyle}>
-          <Stack
-            backgroundColor={backgroundColor}
-            borderRadius={16}
-            paddingVertical="$4"
-            paddingHorizontal="$6"
-            alignItems="center"
-            justifyContent="center"
-            borderWidth={borderColor ? 2 : 0}
-            borderColor={borderColor}
-            shadowColor="#000"
-            shadowOffset={{ width: 0, height: 2 }}
-            shadowRadius={4}
-          >
-            {children}
-          </Stack>
-        </Animated.View>
-      </Animated.View>
+      {children}
     </AnimatedTouchableOpacity>
   );
 };
@@ -564,8 +529,9 @@ export default function ProfileScreen() {
                 backgroundColor="white"
                 textColor="#363636"
                 borderColor="#E0E0E0"
+                variant="secondary"
               >
-                <Stack flexDirection="row" alignItems="center" space="$2">
+                <Stack flexDirection="row" alignItems="center" space="$3">
                   <Feather name="edit-2" size={18} color="#363636" />
                   <Text
                     fontSize={16}
@@ -616,8 +582,9 @@ export default function ProfileScreen() {
               backgroundColor="#FF3B30"
               textColor="white"
               isDestructive={true}
+              variant="primary"
             >
-              <Stack flexDirection="row" alignItems="center" space="$2">
+              <Stack flexDirection="row" alignItems="center" space="$3">
                 <Ionicons name="log-out-outline" size={20} color="white" />
                 <Text
                   fontSize={16}

@@ -107,37 +107,73 @@ def analyze_ingredients():
     }
 
     prompt = """
-You are an AI assistant that analyzes food product ingredient labels for health and safety, based on an image of the ingredient list. You will receive a list of ingredients and must analyze them based on the following categories:
+You are an AI assistant that analyzes food product ingredient labels for health and safety. Given a list of ingredients, categorize them into the following:
 
 - Safe
-- Low Risk  
+- Low Risk
 - Not Great
 - Dangerous
 
-Your response MUST be a valid JSON object that can be parsed directly. Do not include any markdown formatting, code blocks, or additional text. Return ONLY the JSON object.
+Your response MUST be a valid JSON object and contain no additional formatting or markdown. Return ONLY the JSON object. Do not include any text outside the JSON.
 
-The JSON schema for your response:
+Your task includes:
+
+1. Identify the product name from the label (if available).
+2. Provide a general safety score (e.g., "Safe: 95%").
+3. Provide a 2-3 sentence summary of the ingredient safety profile.
+4. For each category (safe, low_risk, not_great, dangerous):
+   - Include only the names of ingredients (for use in collapsed UI cards).
+   - Include a breakdown with:
+     - The ingredient name
+     - A short reason for the classification
+     - The amount present in the product (if known; otherwise use "unknown")
+
+Use this exact JSON structure:
 
 {
   "product_name": "string - Name of the product (if visible on label)",
-  "safety_score": "string - e.g. 'Safe: 95%'", 
-  "ingredients_summary": "string - Overall summary paragraph about safety and benefits/risks",
+  "safety_score": "string - e.g. 'Safe: 95%'",
+  "ingredients_summary": "string - Overall summary paragraph about safety and risks",
   "ingredient_categories": {
     "safe": {
-      "percentage": "string - e.g. '75-80%'",
-      "ingredients": ["array of safe ingredient names"]
+      "ingredients": ["array of safe ingredient names"],
+      "details": [
+        {
+          "ingredient": "ingredient name",
+          "reason": "short explanation of why it's considered safe",
+          "amount": "string - amount if known, e.g., '5g' or '2%', else 'unknown'"
+        }
+      ]
     },
     "low_risk": {
-      "percentage": "string - e.g. '05-10%'", 
-      "ingredients": ["array of low risk ingredient names"]
+      "ingredients": ["array of low risk ingredient names"],
+      "details": [
+        {
+          "ingredient": "ingredient name",
+          "reason": "short explanation of why it's considered low risk",
+          "amount": "string - amount if known, e.g., '5g' or '2%', else 'unknown'"
+        }
+      ]
     },
     "not_great": {
-      "percentage": "string - e.g. '15-20%'",
-      "ingredients": ["array of concerning ingredient names"]
+      "ingredients": ["array of not great ingredient names"],
+      "details": [
+        {
+          "ingredient": "ingredient name",
+          "reason": "short explanation of why it's considered not great",
+          "amount": "string - amount if known, e.g., '5g' or '2%', else 'unknown'"
+        }
+      ]
     },
     "dangerous": {
-      "percentage": "string - e.g. '0%'",
-      "ingredients": ["array of dangerous ingredient names, or ['None'] if none"]
+      "ingredients": ["array of dangerous ingredient names or ['None'] if none"],
+      "details": [
+        {
+          "ingredient": "ingredient name",
+          "reason": "short explanation of why it's considered dangerous",
+          "amount": "string - amount if known, e.g., '5g' or '2%', else 'unknown'"
+        }
+      ]
     }
   }
 }
@@ -150,42 +186,105 @@ Example response:
   "ingredients_summary": "Most ingredients are safe and beneficial for growth, immunity, and energy. Main concern: Sugar content is relatively high—consume in moderation, especially for children. No dangerous ingredients identified by regulators.",
   "ingredient_categories": {
     "safe": {
-      "percentage": "75-80%",
       "ingredients": [
         "Barley, Wheat (Cereal Extracts)",
-        "Cocoa Solids", 
+        "Cocoa Solids",
         "Milk Solids",
         "Protein Isolates",
         "Vitamins, Minerals",
         "Maltodextrins"
+      ],
+      "details": [
+        {
+          "ingredient": "Barley, Wheat (Cereal Extracts)",
+          "reason": "Rich in fiber and complex carbohydrates.",
+          "amount": "unknown"
+        },
+        {
+          "ingredient": "Cocoa Solids",
+          "reason": "Contains antioxidants and adds natural flavor.",
+          "amount": "7%"
+        },
+        {
+          "ingredient": "Milk Solids",
+          "reason": "Provides calcium and protein for growth.",
+          "amount": "unknown"
+        },
+        {
+          "ingredient": "Protein Isolates",
+          "reason": "High-quality protein source for muscle repair.",
+          "amount": "unknown"
+        },
+        {
+          "ingredient": "Vitamins, Minerals",
+          "reason": "Essential micronutrients for overall health.",
+          "amount": "1%"
+        },
+        {
+          "ingredient": "Maltodextrins",
+          "reason": "Safe carbohydrate used for texture and energy.",
+          "amount": "unknown"
+        }
       ]
     },
     "low_risk": {
-      "percentage": "05-10%",
       "ingredients": [
         "Liquid Glucose",
-        "Emulsifiers (322, 471)", 
+        "Emulsifiers (322, 471)",
         "Raising Agents (500(ii))",
         "Artificial Flavoring Substances"
+      ],
+      "details": [
+        {
+          "ingredient": "Liquid Glucose",
+          "reason": "Used as a sweetener; safe in moderation.",
+          "amount": "unknown"
+        },
+        {
+          "ingredient": "Emulsifiers (322, 471)",
+          "reason": "Generally safe but can cause issues in high doses for sensitive individuals.",
+          "amount": "unknown"
+        },
+        {
+          "ingredient": "Raising Agents (500(ii))",
+          "reason": "Common baking ingredient with low health impact.",
+          "amount": "unknown"
+        },
+        {
+          "ingredient": "Artificial Flavoring Substances",
+          "reason": "Approved for use but may cause reactions in sensitive individuals.",
+          "amount": "unknown"
+        }
       ]
     },
     "not_great": {
-      "percentage": "15-20%",
       "ingredients": [
         "Sugar",
         "Permitted Color (150c, Caramel)"
+      ],
+      "details": [
+        {
+          "ingredient": "Sugar",
+          "reason": "High amounts contribute to obesity and tooth decay.",
+          "amount": "32g"
+        },
+        {
+          "ingredient": "Permitted Color (150c, Caramel)",
+          "reason": "Some types of caramel color have been linked to health concerns in excess.",
+          "amount": "0.1%"
+        }
       ]
     },
     "dangerous": {
-      "percentage": "0%",
-      "ingredients": ["None"]
+      "ingredients": ["None"],
+      "details": []
     }
   }
 }
+"""
 
-Remember: Return ONLY valid JSON without any markdown formatting or additional text.
-    """
 
+    
     payload = {
         "model": "sonar",
         "messages": [

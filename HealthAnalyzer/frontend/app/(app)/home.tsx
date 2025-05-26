@@ -18,6 +18,7 @@ import Animated, {
   withSpring,
   runOnJS
 } from 'react-native-reanimated';
+import { AnimatedButton } from '@/components/AnimatedButton';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
@@ -33,52 +34,37 @@ interface FeatureCardProps {
 const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onPress }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
-  const translateY = useSharedValue(0);
   const shadowOpacity = useSharedValue(0.1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateY: translateY.value }
-    ],
+    transform: [{ scale: scale.value }],
     opacity: opacity.value,
   }));
 
   const shadowStyle = useAnimatedStyle(() => ({
     shadowOpacity: shadowOpacity.value,
-    elevation: shadowOpacity.value * 30, // For Android
+    elevation: shadowOpacity.value * 30,
   }));
 
   const handlePressIn = () => {
-    // More subtle and refined animation
     scale.value = withSpring(0.96, {
       damping: 20,
       stiffness: 400,
     });
     opacity.value = withTiming(0.9, { duration: 150 });
-    translateY.value = withSpring(2, {
-      damping: 20,
-      stiffness: 400,
-    });
     shadowOpacity.value = withTiming(0.05, { duration: 150 });
   };
 
   const handlePressOut = () => {
-    // Smooth return animation
     scale.value = withSpring(1, {
       damping: 18,
       stiffness: 350,
     });
     opacity.value = withTiming(1, { duration: 200 });
-    translateY.value = withSpring(0, {
-      damping: 18,
-      stiffness: 350,
-    });
-    shadowOpacity.value = withTiming(0.1, { duration: 200 });
+    shadowOpacity.value = withTiming(0.15, { duration: 200 });
   };
 
   const handlePress = () => {
-    // Quick bounce effect on press
     scale.value = withSpring(0.98, {
       damping: 25,
       stiffness: 500,
@@ -107,7 +93,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onP
         }, 
         animatedStyle
       ]}
-      activeOpacity={1} // Disable default opacity change
+      activeOpacity={1}
     >
       <AnimatedStack
         style={[
