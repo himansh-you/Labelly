@@ -295,39 +295,42 @@ const QuickReply: React.FC<QuickReplyProps> = ({ text, onPress }) => {
 
 export default function ChatbotScreen() {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Hello! I'm Ms. Labelly, your health assistant. How can I help you today?",
+      text: "Hello! I'm Ms. Labelly, your personal health assistant. I can help you understand ingredients, suggest healthier alternatives, and answer any questions about nutrition and wellness. How can I assist you today?",
       isUser: false,
       timestamp: new Date(),
     }
   ]);
-  const [inputText, setInputText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const quickReplies = [
-    "What ingredients should I avoid?",
-    "Is this product healthy?",
-    "Tell me about nutrition labels",
-    "Help me understand allergens"
+    "What are the healthiest ingredients?",
+    "How to read nutrition labels?",
+    "Suggest healthy alternatives",
+    "What should I avoid?"
   ];
 
   useEffect(() => {
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (e) => {
-      setKeyboardHeight(e.endCoordinates.height);
-      // Scroll to bottom when keyboard shows
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    });
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    );
     
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardHeight(0);
-    });
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        // Optional: scroll adjustment when keyboard hides
+      }
+    );
 
     return () => {
       keyboardDidShowListener?.remove();
@@ -349,27 +352,23 @@ export default function ChatbotScreen() {
     setIsTyping(true);
     
     setTimeout(() => {
-      let botResponse = "";
+      const responses = [
+        "That's a great question! Based on current nutritional research, I'd recommend focusing on whole, unprocessed ingredients whenever possible.",
+        "I understand your concern about ingredient safety. Let me help you identify what to look for on nutrition labels.",
+        "Excellent choice in prioritizing your health! Here are some key ingredients that are generally considered beneficial for most people.",
+        "Thank you for asking! Nutrition can be complex, but I'm here to help make it clearer for you.",
+        "That's an important consideration for your health journey. Let me provide you with some evidence-based information."
+      ];
       
-      if (userMessage.toLowerCase().includes('ingredient')) {
-        botResponse = "I can help you understand ingredients! Generally, you should be cautious of artificial preservatives, excessive sodium, trans fats, and high fructose corn syrup. Would you like me to analyze a specific product for you?";
-      } else if (userMessage.toLowerCase().includes('healthy')) {
-        botResponse = "To determine if a product is healthy, I look at several factors: nutritional content, ingredient quality, processing level, and your personal dietary needs. Feel free to scan a product and I'll give you a detailed analysis!";
-      } else if (userMessage.toLowerCase().includes('nutrition')) {
-        botResponse = "Nutrition labels provide valuable information! Key things to check: serving size, calories, saturated fat, sodium, added sugars, and fiber. I can help you interpret any specific label you're curious about.";
-      } else if (userMessage.toLowerCase().includes('allergen')) {
-        botResponse = "Allergens are important to identify! Common ones include milk, eggs, fish, shellfish, tree nuts, peanuts, wheat, and soybeans. Always check the 'Contains' section on labels. Do you have specific allergies I should help you watch for?";
-      } else {
-        botResponse = "That's an interesting question! I'm here to help with health and nutrition topics. You can ask me about ingredients, nutrition labels, allergens, or scan products for detailed analysis. What would you like to know more about?";
-      }
-
+      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      
       const botMessage: Message = {
         id: Date.now().toString(),
-        text: botResponse,
+        text: randomResponse,
         isUser: false,
         timestamp: new Date(),
       };
-
+      
       setMessages(prev => [...prev, botMessage]);
       setIsTyping(false);
       scrollToBottom();
@@ -378,7 +377,7 @@ export default function ChatbotScreen() {
 
   const handleSendMessage = () => {
     if (inputText.trim() === '') return;
-
+    
     const userMessage: Message = {
       id: Date.now().toString(),
       text: inputText.trim(),
@@ -396,7 +395,7 @@ export default function ChatbotScreen() {
   const handleQuickReply = (text: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: text,
+      text,
       isUser: true,
       timestamp: new Date(),
     };
@@ -413,7 +412,7 @@ export default function ChatbotScreen() {
       <KeyboardAvoidingView 
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={{ flex: 1, backgroundColor: "#FDFAF6" }}>
           {/* Header */}
@@ -561,7 +560,7 @@ export default function ChatbotScreen() {
             </AnimatedView>
           )}
 
-          {/* Input Area */}
+          {/* Input Area - RESTORED PROPER STRUCTURE */}
           <View style={{
             backgroundColor: "white",
             borderTopWidth: 1,
@@ -604,6 +603,11 @@ export default function ChatbotScreen() {
                 onSubmitEditing={handleSendMessage}
                 returnKeyType="send"
                 blurOnSubmit={false}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 300);
+                }}
               />
               <SendButton
                 onPress={handleSendMessage}

@@ -18,11 +18,12 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 interface CameraViewProps {
   onImageCaptured: (image: { uri: string }) => void | Promise<void>;
   onClose: () => void;
+  onGalleryPress?: () => void;
 }
 
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
 
-export default function CameraView({ onImageCaptured, onClose }: CameraViewProps) {
+export default function CameraView({ onImageCaptured, onClose, onGalleryPress }: CameraViewProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [facing, setFacing] = useState<CameraType>('back');
   const [flash, setFlash] = useState<FlashMode>('off');
@@ -100,18 +101,26 @@ export default function CameraView({ onImageCaptured, onClose }: CameraViewProps
   };
 
   const pickFromGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
+    if (onGalleryPress) {
+      // Use the provided gallery handler from parent
+      onGalleryPress();
+    } else {
+      // Fallback to default behavior if no handler provided
+      try {
+        let result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 1,
+        });
 
-      if (!result.canceled && result.assets[0]) {
-        onImageCaptured({ uri: result.assets[0].uri });
+        if (!result.canceled && result.assets[0]) {
+          console.log('Gallery image selected in CameraView:', result.assets[0].uri);
+          await onImageCaptured({ uri: result.assets[0].uri });
+        }
+      } catch (error) {
+        console.error('Error picking image from gallery:', error);
+        Alert.alert('Error', 'Failed to select image from gallery. Please try again.');
       }
-    } catch (error) {
-      console.error('Error picking from gallery:', error);
     }
   };
 

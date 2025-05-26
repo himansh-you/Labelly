@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, Text } from '@tamagui/core';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -94,9 +94,17 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
 
 export default function ScanScreen() {
   const router = useRouter();
+  const { directCamera } = useLocalSearchParams<{ directCamera?: string }>();
   const [showCamera, setShowCamera] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Auto-open camera if directCamera param is passed
+  useEffect(() => {
+    if (directCamera === 'true') {
+      setShowCamera(true);
+    }
+  }, [directCamera]);
   
   const handleImageCaptured = async (image: { uri: string }) => {
     console.log('Image captured:', image.uri);

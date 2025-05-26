@@ -1,35 +1,364 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Image, TouchableOpacity, Share, ActivityIndicator, Alert, TextStyle, ViewStyle, ImageStyle } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { Image, Alert, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
-import Markdown from 'react-native-markdown-display';
-import ScanButton from '@/components/ScanButton';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { 
+  Stack, 
+  Text, 
+  ScrollView, 
+  XStack, 
+  YStack,
+  Button
+} from 'tamagui';
+import { Sheet } from '@tamagui/sheet';
 import { getUserScans, getScanById, ScanData } from '@/lib/firestore';
 import { auth } from '@/lib/firebase';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+  runOnJS
+} from 'react-native-reanimated';
 
-// Markdown styles definition
-type MarkdownStyle = {
-  [key: string]: ViewStyle | TextStyle | ImageStyle;
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+
+const { height: screenHeight } = Dimensions.get('window');
+
+// Types for parsed analysis result
+interface AnalysisResult {
+  product_name: string;
+  safety_score: string;
+  ingredients_summary: string;
+  ingredient_categories: {
+    safe: {
+      percentage: string;
+      ingredients: string[];
+    };
+    low_risk: {
+      percentage: string;
+      ingredients: string[];
+    };
+    not_great: {
+      percentage: string;
+      ingredients: string[];
+    };
+    dangerous: {
+      percentage: string;
+      ingredients: string[];
+    };
+  };
+}
+
+// Tab type - changed Reviews to Compare
+type TabType = 'Ingredients' | 'Compare' | 'Alternatives';
+
+// Safety Bar Component matching the reference image
+const SafetyBar = ({ analysisData }: { analysisData: AnalysisResult }) => {
+  // Calculate counts from ingredients
+  const safeCount = analysisData.ingredient_categories.safe.ingredients.length;
+  const lowRiskCount = analysisData.ingredient_categories.low_risk.ingredients.length;
+  const notGreatCount = analysisData.ingredient_categories.not_great.ingredients.length;
+  const dangerousCount = analysisData.ingredient_categories.dangerous.ingredients.filter(ing => ing !== "None").length;
+  
+  const totalCount = safeCount + lowRiskCount + notGreatCount + dangerousCount;
+  
+  // Calculate percentages for width
+  const safeWidth = totalCount > 0 ? (safeCount / totalCount) * 100 : 0;
+  const lowRiskWidth = totalCount > 0 ? (lowRiskCount / totalCount) * 100 : 0;
+  const notGreatWidth = totalCount > 0 ? (notGreatCount / totalCount) * 100 : 0;
+  const dangerousWidth = totalCount > 0 ? (dangerousCount / totalCount) * 100 : 0;
+
+  return (
+    <YStack space="$3" marginVertical="$4">
+      {/* Progress Bar - matching reference design */}
+      <XStack height={12} borderRadius="$3" overflow="hidden" backgroundColor="#E5E5E5">
+        {safeWidth > 0 && (
+          <Stack 
+            width={`${safeWidth}%`} 
+            height="100%" 
+            backgroundColor="#4CAF50" 
+          />
+        )}
+        {lowRiskWidth > 0 && (
+          <Stack 
+            width={`${lowRiskWidth}%`} 
+            height="100%" 
+            backgroundColor="#FFC107" 
+          />
+        )}
+        {notGreatWidth > 0 && (
+          <Stack 
+            width={`${notGreatWidth}%`} 
+            height="100%" 
+            backgroundColor="#FF9800" 
+          />
+        )}
+        {dangerousWidth > 0 && (
+          <Stack 
+            width={`${dangerousWidth}%`} 
+            height="100%" 
+            backgroundColor="#F44336" 
+          />
+        )}
+      </XStack>
+
+      {/* Legend with exact styling from reference */}
+      <YStack space="$2">
+        <XStack justifyContent="space-between" alignItems="center">
+          <XStack alignItems="center" space="$3">
+            <Stack width={16} height={16} borderRadius="$1" backgroundColor="#4CAF50" />
+            <Text fontSize={15} color="#333" fontWeight="400" fontFamily="Baloo2Regular">Safe</Text>
+          </XStack>
+          <Text fontSize={15} color="#333" fontWeight="600" fontFamily="Baloo2SemiBold">{safeCount}</Text>
+        </XStack>
+        
+        <XStack justifyContent="space-between" alignItems="center">
+          <XStack alignItems="center" space="$3">
+            <Stack width={16} height={16} borderRadius="$1" backgroundColor="#FFC107" />
+            <Text fontSize={15} color="#333" fontWeight="400" fontFamily="Baloo2Regular">Low Risk</Text>
+          </XStack>
+          <Text fontSize={15} color="#333" fontWeight="600" fontFamily="Baloo2SemiBold">{lowRiskCount}</Text>
+        </XStack>
+        
+        <XStack justifyContent="space-between" alignItems="center">
+          <XStack alignItems="center" space="$3">
+            <Stack width={16} height={16} borderRadius="$1" backgroundColor="#FF9800" />
+            <Text fontSize={15} color="#333" fontWeight="400" fontFamily="Baloo2Regular">Not Great</Text>
+          </XStack>
+          <Text fontSize={15} color="#333" fontWeight="600" fontFamily="Baloo2SemiBold">{notGreatCount}</Text>
+        </XStack>
+        
+        <XStack justifyContent="space-between" alignItems="center">
+          <XStack alignItems="center" space="$3">
+            <Stack width={16} height={16} borderRadius="$1" backgroundColor="#F44336" />
+            <Text fontSize={15} color="#333" fontWeight="400" fontFamily="Baloo2Regular">Dangerous</Text>
+          </XStack>
+          <Text fontSize={15} color="#333" fontWeight="600" fontFamily="Baloo2SemiBold">{dangerousCount}</Text>
+        </XStack>
+      </YStack>
+    </YStack>
+  );
 };
 
-const markdownStyles: MarkdownStyle = {
-  heading1: { fontSize: 22, fontWeight: 'bold' as const, marginVertical: 8 },
-  heading2: { fontSize: 18, fontWeight: 'bold' as const, marginVertical: 6 },
-  heading3: { fontSize: 16, fontWeight: 'bold' as const, marginVertical: 4 },
-  paragraph: { fontSize: 16, lineHeight: 24, marginVertical: 4, color: '#333' },
-  list_item: { fontSize: 16, marginVertical: 2, color: '#333' },
-  bullet_list: { marginLeft: 8 },
-  ordered_list: { marginLeft: 8 },
-  strong: { fontWeight: 'bold' as const },
-  em: { fontStyle: 'italic' as const },
-  link: { color: '#007AFF', textDecorationLine: 'underline' as const },
-  blockquote: { backgroundColor: '#f0f0f0', paddingHorizontal: 12, paddingVertical: 8, borderLeftWidth: 4, borderLeftColor: '#ddd' },
-  code_block: { backgroundColor: '#f8f8f8', padding: 10, borderRadius: 4, fontFamily: 'monospace' },
-  code_inline: { backgroundColor: '#f8f8f8', padding: 2, fontFamily: 'monospace' }
+// Ingredient Category Component matching reference layout
+const IngredientCategory = ({ 
+  title, 
+  percentage, 
+  ingredients, 
+  borderColor 
+}: { 
+  title: string; 
+  percentage: string; 
+  ingredients: string[]; 
+  borderColor: string;
+}) => (
+  <YStack 
+    backgroundColor="#F8F8F8" 
+    borderRadius="$2" 
+    padding="$4" 
+    marginVertical="$2"
+    borderLeftWidth={4}
+    borderLeftColor={borderColor}
+  >
+    <XStack justifyContent="space-between" alignItems="center" marginBottom="$3">
+      <Text fontSize={16} fontWeight="600" color="#333" fontFamily="Baloo2SemiBold">{title}</Text>
+      <Text fontSize={14} color="#666" fontFamily="Baloo2Regular">{percentage}</Text>
+    </XStack>
+    <YStack space="$1">
+      {ingredients.map((ingredient, index) => (
+        <Text key={index} fontSize={14} color="#333" lineHeight={18} fontFamily="Baloo2Regular">
+          {ingredient}
+        </Text>
+      ))}
+    </YStack>
+  </YStack>
+);
+
+// Tab Navigation Component matching reference design
+const TabNavigation = ({ 
+  activeTab, 
+  onTabChange 
+}: { 
+  activeTab: TabType; 
+  onTabChange: (tab: TabType) => void;
+}) => (
+  <XStack backgroundColor="#E5E5E5" borderRadius="$4" padding="$1" marginVertical="$4">
+    {(['Ingredients', 'Compare', 'Alternatives'] as TabType[]).map((tab) => (
+      <Button
+        key={tab}
+        flex={1}
+        onPress={() => onTabChange(tab)}
+        backgroundColor={activeTab === tab ? "#333333" : "transparent"}
+        borderRadius="$3"
+        size="$3"
+        fontWeight={activeTab === tab ? "600" : "400"}
+        color={activeTab === tab ? "white" : "#666"}
+        fontFamily={activeTab === tab ? "Baloo2SemiBold" : "Baloo2Regular"}
+        pressStyle={{
+          backgroundColor: activeTab === tab ? "#222222" : "#D0D0D0"
+        }}
+      >
+        {tab}
+      </Button>
+    ))}
+  </XStack>
+);
+
+// Tab Content Component
+const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisData: AnalysisResult }) => {
+  if (activeTab === 'Ingredients') {
+    return (
+      <YStack space="$2">
+        {/* Safe Ingredients */}
+        <IngredientCategory
+          title="Safe Ingredients"
+          percentage={analysisData.ingredient_categories.safe.percentage}
+          ingredients={analysisData.ingredient_categories.safe.ingredients}
+          borderColor="#4CAF50"
+        />
+
+        {/* Low Risk Ingredients */}
+        <IngredientCategory
+          title="Low Risk Ingredients"
+          percentage={analysisData.ingredient_categories.low_risk.percentage}
+          ingredients={analysisData.ingredient_categories.low_risk.ingredients}
+          borderColor="#FFC107"
+        />
+
+        {/* Not Great Ingredients */}
+        <IngredientCategory
+          title="Not Great Ingredients"
+          percentage={analysisData.ingredient_categories.not_great.percentage}
+          ingredients={analysisData.ingredient_categories.not_great.ingredients}
+          borderColor="#FF9800"
+        />
+
+        {/* Dangerous Ingredients */}
+        <IngredientCategory
+          title="Dangerous Ingredients"
+          percentage={analysisData.ingredient_categories.dangerous.percentage}
+          ingredients={analysisData.ingredient_categories.dangerous.ingredients}
+          borderColor="#F44336"
+        />
+
+        {/* Summary matching reference layout */}
+        <YStack 
+          backgroundColor="#F0F0F0" 
+          borderRadius="$4" 
+          padding="$4" 
+          marginTop="$4"
+        >
+          <Text fontSize={16} fontWeight="600" color="#333" marginBottom="$3" fontFamily="Baloo2SemiBold">Summary</Text>
+          <Text fontSize={14} lineHeight={20} color="#333" fontFamily="Baloo2Regular">
+            {analysisData.ingredients_summary}
+          </Text>
+        </YStack>
+      </YStack>
+    );
+  }
+
+  if (activeTab === 'Compare') {
+    return (
+      <YStack 
+        alignItems="center"
+        justifyContent="center"
+        minHeight={200}
+      >
+        <Text fontSize={16} color="#666" fontFamily="Baloo2Regular">Product comparison coming soon</Text>
+      </YStack>
+    );
+  }
+
+  if (activeTab === 'Alternatives') {
+    return (
+      <YStack 
+        alignItems="center"
+        justifyContent="center"
+        minHeight={200}
+      >
+        <Text fontSize={16} color="#666" fontFamily="Baloo2Regular">Alternatives coming soon</Text>
+      </YStack>
+    );
+  }
+
+  return null;
+};
+
+// Animated Button Component matching your scan screen
+interface AnimatedButtonProps {
+  onPress: () => void;
+  disabled?: boolean;
+  backgroundColor: string;
+  children: React.ReactNode;
+  borderColor?: string;
+}
+
+const AnimatedButton: React.FC<AnimatedButtonProps> = ({ 
+  onPress, 
+  disabled = false, 
+  backgroundColor, 
+  children, 
+  borderColor 
+}) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const handlePressIn = () => {
+    if (!disabled) {
+      scale.value = withSpring(0.95);
+      opacity.value = 0.8;
+    }
+  };
+
+  const handlePressOut = () => {
+    if (!disabled) {
+      scale.value = withSpring(1);
+      opacity.value = 1;
+    }
+  };
+
+  const handlePress = () => {
+    if (!disabled) {
+      runOnJS(onPress)();
+    }
+  };
+
+  return (
+    <AnimatedTouchableOpacity
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      disabled={disabled}
+      style={animatedStyle}
+    >
+      <Stack
+        backgroundColor={backgroundColor}
+        borderRadius="$4"
+        paddingVertical="$4"
+        paddingHorizontal="$6"
+        alignItems="center"
+        justifyContent="center"
+        borderWidth={borderColor ? 2 : 0}
+        borderColor={borderColor}
+        opacity={disabled ? 0.6 : 1}
+        minHeight={56}
+      >
+        {children}
+      </Stack>
+    </AnimatedTouchableOpacity>
+  );
 };
 
 export default function ResultScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { scanId, imageUri, analyzeResult } = useLocalSearchParams<{
     scanId: string;
     imageUri: string;
@@ -39,8 +368,17 @@ export default function ResultScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scanData, setScanData] = useState<ScanData | null>(null);
-  const [markdownContent, setMarkdownContent] = useState<string>('');
+  const [analysisData, setAnalysisData] = useState<AnalysisResult | null>(null);
   const [citations, setCitations] = useState<any[]>([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('Ingredients');
+
+  // Calculate snap points as percentages of screen height
+  const snapPoints = [
+    95, // Nearly full screen (95% to leave status bar visible)
+    75, // Three quarters
+    25  // Minimum (quarter screen)
+  ];
 
   useEffect(() => {
     async function fetchScanData() {
@@ -53,10 +391,40 @@ export default function ResultScreen() {
           try {
             const parsedResult = JSON.parse(analyzeResult);
             
-            // Just store the raw analysis and citations
-            setMarkdownContent(parsedResult.analysis || '');
+            // Parse the analysis content to extract structured data
+            const analysisContent = parsedResult.analysis || '';
+            console.log('Raw analysis content:', analysisContent);
+            
+            // Try to extract JSON from the analysis content
+            try {
+              // Look for JSON in the content
+              const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const extractedData = JSON.parse(jsonMatch[0]);
+                setAnalysisData(extractedData);
+              } else {
+                throw new Error('No JSON found in analysis content');
+              }
+            } catch (parseError) {
+              console.error('Error parsing structured data:', parseError);
+              // Fallback: create a basic structure
+              setAnalysisData({
+                product_name: "Product Analysis",
+                safety_score: "Analysis Complete",
+                ingredients_summary: analysisContent,
+                ingredient_categories: {
+                  safe: { percentage: "0%", ingredients: [] },
+                  low_risk: { percentage: "0%", ingredients: [] },
+                  not_great: { percentage: "0%", ingredients: [] },
+                  dangerous: { percentage: "0%", ingredients: [] }
+                }
+              });
+            }
+            
             setCitations(parsedResult.citations || []);
             setIsLoading(false);
+            // Show the sheet after data is loaded
+            setTimeout(() => setSheetOpen(true), 500);
             return;
           } catch (parseError) {
             console.error('Error parsing analyzeResult:', parseError);
@@ -89,11 +457,35 @@ export default function ResultScreen() {
         
         setScanData(scan);
         
-        // Store the raw analysis content
+        // Process scan data similar to above
         if (scan.analysisResult) {
-          setMarkdownContent(scan.analysisResult.analysis || '');
+          // Try to parse structured data from stored analysis
+          const analysisContent = scan.analysisResult.analysis || '';
+          try {
+            const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const extractedData = JSON.parse(jsonMatch[0]);
+              setAnalysisData(extractedData);
+            }
+          } catch {
+            // Fallback
+            setAnalysisData({
+              product_name: "Product Analysis",
+              safety_score: "Analysis Complete",
+              ingredients_summary: analysisContent,
+              ingredient_categories: {
+                safe: { percentage: "0%", ingredients: [] },
+                low_risk: { percentage: "0%", ingredients: [] },
+                not_great: { percentage: "0%", ingredients: [] },
+                dangerous: { percentage: "0%", ingredients: [] }
+              }
+            });
+          }
           setCitations(scan.analysisResult.citations || []);
         }
+        
+        // Show the sheet after data is loaded
+        setTimeout(() => setSheetOpen(true), 500);
       } catch (error) {
         console.error('Error fetching scan data:', error);
         setError(error instanceof Error ? error.message : 'An unknown error occurred');
@@ -105,53 +497,46 @@ export default function ResultScreen() {
     fetchScanData();
   }, [scanId, analyzeResult]);
 
-  const handleShare = async () => {
-    if (!markdownContent) return;
-    
-    try {
-      await Share.share({
-        message: markdownContent,
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-      Alert.alert('Error', 'Failed to share analysis');
-    }
+  const handleNewScan = () => {
+    setSheetOpen(false);
+    router.push('/(app)/scan');
   };
 
-  const handleNewScan = () => {
-    router.push('/(app)/scan');
+  const handleBack = () => {
+    setSheetOpen(false);
+    router.back();
   };
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
+      <Stack flex={1} backgroundColor="#f8f8f8" alignItems="center" justifyContent="center">
         <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Loading analysis results...</Text>
-      </View>
+        <Text marginTop="$4" fontSize={16} color="#666" fontFamily="Baloo2Regular">Loading analysis results...</Text>
+      </Stack>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
+      <Stack flex={1} backgroundColor="#f8f8f8" alignItems="center" justifyContent="center" padding="$6">
         <FontAwesome name="exclamation-triangle" size={50} color="#ff3b30" />
-        <Text style={styles.errorTitle}>Error</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleNewScan}>
-          <Text style={styles.retryButtonText}>Try a New Scan</Text>
-        </TouchableOpacity>
-      </View>
+        <Text marginTop="$4" fontSize={20} fontWeight="bold" color="#ff3b30" fontFamily="Baloo2Bold">Error</Text>
+        <Text marginTop="$2" fontSize={16} color="#666" textAlign="center" fontFamily="Baloo2Regular">{error}</Text>
+        <Button marginTop="$6" onPress={handleNewScan} backgroundColor="#4CAF50" fontFamily="Baloo2SemiBold">
+          Try a New Scan
+        </Button>
+      </Stack>
     );
   }
 
-  if (!markdownContent) {
+  if (!analysisData) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text>No analysis result found.</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleNewScan}>
-          <Text style={styles.retryButtonText}>Try a New Scan</Text>
-        </TouchableOpacity>
-      </View>
+      <Stack flex={1} backgroundColor="#f8f8f8" alignItems="center" justifyContent="center" padding="$6">
+        <Text fontSize={16} fontFamily="Baloo2Regular">No analysis result found.</Text>
+        <Button marginTop="$4" onPress={handleNewScan} backgroundColor="#4CAF50" fontFamily="Baloo2SemiBold">
+          Try a New Scan
+        </Button>
+      </Stack>
     );
   }
 
@@ -159,158 +544,163 @@ export default function ResultScreen() {
   const displayImageUri = imageUri || (scanData?.analysisResult?.imageUrl || null);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <FontAwesome name="arrow-left" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Analysis Result</Text>
-        <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
-          <FontAwesome name="share-alt" size={24} color="#333" />
-        </TouchableOpacity>
-      </View>
+    <>
+      <StatusBar style="dark" backgroundColor="#f8f8f8" />
+      <Stack flex={1} backgroundColor="#f8f8f8">
+        {/* Background content - you can add camera view or other content here */}
+        <Stack flex={1} alignItems="center" justifyContent="center">
+          <Text fontSize={18} color="#666" fontFamily="Baloo2Regular">Scan complete!</Text>
+          <Text fontSize={14} color="#999" marginTop="$2" fontFamily="Baloo2Regular">Swipe up to view results</Text>
+        </Stack>
 
+        {/* Sheet Component - Updated to handle complete dismissal */}
+        <Sheet
+          modal={true}
+          open={sheetOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              // When sheet is completely dismissed, redirect to scan screen
+              handleNewScan();
+            } else {
+              setSheetOpen(open);
+            }
+          }}
+          snapPoints={[95, 75, 25]}
+          dismissOnSnapToBottom={true}  // Allow complete dismissal
+          animation="medium"
+          zIndex={100000}
+          moveOnKeyboardChange={true}
+        >
+          <Sheet.Overlay 
+            animation="lazy" 
+            enterStyle={{ opacity: 0 }} 
+            exitStyle={{ opacity: 0 }} 
+          />
+          
+          <Sheet.Handle backgroundColor="#DDD" />
+          
+          <Sheet.Frame 
+            backgroundColor="white" 
+            borderTopLeftRadius="$6" 
+            borderTopRightRadius="$6"
+            flex={1}
+          >
+            <YStack flex={1}>
+              {/* Scrollable Content - with proper bottom padding */}
+              <ScrollView 
+                flex={1} 
+                padding="$5" 
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ 
+                  paddingBottom: 120 + insets.bottom // Extra space for buttons
+                }}
+              >
+                {/* All your existing content stays the same */}
+                <YStack space="$4">
+                  <XStack space="$4" alignItems="center">
       {displayImageUri && (
-        <View style={styles.imageContainer}>
           <Image
             source={{ uri: displayImageUri }}
-            style={styles.image}
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderRadius: 8,
+                          backgroundColor: '#f0f0f0'
+                        }}
             defaultSource={require('@/assets/placeholder.png')}
-            onError={(error) => {
-              console.error('Image loading error in result screen:', error);
-            }}
-            onLoad={() => {
-              console.log('Result image loaded successfully');
-            }}
-          />
-        </View>
-      )}
+                      />
+                    )}
+                    <YStack flex={1} space="$2">
+                      <Text fontSize={18} fontWeight="600" color="#333" fontFamily="Baloo2SemiBold">
+                        {analysisData.product_name || "Product Analysis"}
+                      </Text>
+                      <Stack 
+                        backgroundColor="#4CAF50" 
+                        borderRadius="$3" 
+                        paddingHorizontal="$3" 
+                        paddingVertical="$1" 
+                        alignSelf="flex-start"
+                      >
+                        <Text fontSize={12} color="white" fontWeight="600" fontFamily="Baloo2SemiBold">
+                          {analysisData.safety_score}
+                        </Text>
+                      </Stack>
+                    </YStack>
+                  </XStack>
 
-      <View style={styles.markdownContainer}>
-        <Markdown style={markdownStyles}>
-          {markdownContent}
-        </Markdown>
-        
-        {citations && citations.length > 0 && (
-          <View style={styles.citationsContainer}>
-            <Text style={styles.citationsTitle}>Sources:</Text>
-            {citations.map((citation, index) => (
-              <Text key={index} style={styles.citationText}>
-                {index + 1}. {citation.source || citation.url || 'Unknown source'}
+                  {/* Tab Navigation */}
+                  <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
+                  {/* Safety Bar */}
+                  <SafetyBar analysisData={analysisData} />
+
+                  {/* Content based on active tab */}
+                  <TabContent activeTab={activeTab} analysisData={analysisData} />
+                </YStack>
+              </ScrollView>
+
+              {/* Absolutely positioned buttons at bottom */}
+              <Stack
+                position="absolute"
+                bottom={0}
+                left={0}
+                right={0}
+                backgroundColor="white" 
+                paddingHorizontal="$5"
+                paddingTop="$4"
+                borderTopWidth={1} 
+                borderTopColor="#E5E5E5"
+                style={{
+                  paddingBottom: insets.bottom + 20,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: -2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 8,
+                }}
+              >
+                <XStack space="$4">
+                  {/* Back Button */}
+                  <Stack flex={1}>
+                    <AnimatedButton
+                      onPress={handleBack}
+                      backgroundColor="#FDFAF6"
+                      borderColor="#363636"
+                    >
+                      <Text 
+                        color="#363636"
+                        fontSize={16}
+                        fontFamily="Baloo2SemiBold"
+                      >
+                        Back
               </Text>
-            ))}
-          </View>
-        )}
-      </View>
+                    </AnimatedButton>
+                  </Stack>
 
-      <View style={styles.newScanContainer}>
-        <ScanButton size="medium" onPress={handleNewScan} />
-      </View>
-    </ScrollView>
+                  {/* New Scan Button */}
+                  <Stack flex={1}>
+                    <AnimatedButton
+                      onPress={handleNewScan}
+                      backgroundColor="#363636"
+                    >
+                      <XStack alignItems="center" space="$2">
+                        <FontAwesome name="camera" size={18} color="#FDFAF6" />
+                        <Text 
+                          color="#FDFAF6"
+                          fontSize={16}
+                          fontFamily="Baloo2SemiBold"
+                        >
+                          New Scan
+                        </Text>
+                      </XStack>
+                    </AnimatedButton>
+                  </Stack>
+                </XStack>
+              </Stack>
+            </YStack>
+          </Sheet.Frame>
+        </Sheet>
+      </Stack>
+    </>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f8f8',
-  },
-  contentContainer: {
-    paddingBottom: 40,
-  },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  shareButton: {
-    padding: 8,
-  },
-  imageContainer: {
-    margin: 16,
-    height: 200,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#f0f0f0',
-  },
-  image: {
-    flex: 1,
-    resizeMode: 'cover',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
-  errorTitle: {
-    marginTop: 16,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ff3b30',
-  },
-  errorText: {
-    marginTop: 8,
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  newScanContainer: {
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  markdownContainer: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  citationsContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  citationsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  citationText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-}); 
+} 

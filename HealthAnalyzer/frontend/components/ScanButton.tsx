@@ -7,12 +7,14 @@ interface ScanButtonProps {
   size?: 'small' | 'medium' | 'large';
   onPress?: () => void;
   variant?: 'primary' | 'secondary';
+  directCamera?: boolean;
 }
 
 export default function ScanButton({ 
   size = 'large',
   onPress,
-  variant = 'primary'
+  variant = 'primary',
+  directCamera = true
 }: ScanButtonProps) {
   const router = useRouter();
 
@@ -20,14 +22,22 @@ export default function ScanButton({
     if (onPress) {
       onPress();
     } else {
-      // Default behavior: navigate to scan screen
-      router.push('/(app)/scan');
+      // Navigate to scan screen with or without direct camera
+      if (directCamera) {
+        router.push('/(app)/scan?directCamera=true');
+      } else {
+        router.push('/(app)/scan');
+      }
     }
   };
 
   return (
     <TouchableOpacity
-            style={[        styles.button,         size === 'large' ? styles.buttonLarge : size === 'medium' ? styles.buttonMedium : styles.buttonSmall,        variant === 'secondary' && styles.buttonSecondary      ]}
+      style={[
+        styles.button,
+        size === 'large' ? styles.buttonLarge : size === 'medium' ? styles.buttonMedium : styles.buttonSmall,
+        variant === 'secondary' && styles.buttonSecondary
+      ]}
       onPress={handlePress}
       activeOpacity={0.8}
     >
@@ -38,7 +48,11 @@ export default function ScanButton({
           color={variant === 'secondary' ? '#363636' : '#fff'} 
           style={styles.icon}
         />
-                <Text style={[          styles.text,           size === 'large' ? styles.textLarge : size === 'medium' ? styles.textMedium : styles.textSmall,          variant === 'secondary' && styles.textSecondary        ]}>
+        <Text style={[
+          styles.text,
+          size === 'large' ? styles.textLarge : size === 'medium' ? styles.textMedium : styles.textSmall,
+          variant === 'secondary' && styles.textSecondary
+        ]}>
           Scan Ingredients
         </Text>
       </View>
