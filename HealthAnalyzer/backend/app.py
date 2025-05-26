@@ -107,29 +107,83 @@ def analyze_ingredients():
     }
 
     prompt = """
-    Analyze the safety of a consumer product based on its ingredients listed in the attached image.
+You are an AI assistant that analyzes food product ingredient labels for health and safety, based on an image of the ingredient list. You will receive a list of ingredients and must analyze them based on the following categories:
 
-    Return a brief and focused report that includes only ingredients that are potentially unsafe, controversial, or regulated.
+- Safe
+- Low Risk  
+- Not Great
+- Dangerous
 
-    For each flagged ingredient, provide:
+Your response MUST be a valid JSON object that can be parsed directly. Do not include any markdown formatting, code blocks, or additional text. Return ONLY the JSON object.
 
-    Name
+The JSON schema for your response:
 
-    Concern (e.g., allergen, carcinogen, hormone disruptor)
+{
+  "product_name": "string - Name of the product (if visible on label)",
+  "safety_score": "string - e.g. 'Safe: 95%'", 
+  "ingredients_summary": "string - Overall summary paragraph about safety and benefits/risks",
+  "ingredient_categories": {
+    "safe": {
+      "percentage": "string - e.g. '75-80%'",
+      "ingredients": ["array of safe ingredient names"]
+    },
+    "low_risk": {
+      "percentage": "string - e.g. '05-10%'", 
+      "ingredients": ["array of low risk ingredient names"]
+    },
+    "not_great": {
+      "percentage": "string - e.g. '15-20%'",
+      "ingredients": ["array of concerning ingredient names"]
+    },
+    "dangerous": {
+      "percentage": "string - e.g. '0%'",
+      "ingredients": ["array of dangerous ingredient names, or ['None'] if none"]
+    }
+  }
+}
 
-    Regulatory status (e.g., restricted in EU, banned in certain countries, limited by FDA)
+Example response:
 
-    Risk level: Moderate / High
+{
+  "product_name": "Cadbury BournVita Malted Chocolate Drink Mix",
+  "safety_score": "Safe: 95%",
+  "ingredients_summary": "Most ingredients are safe and beneficial for growth, immunity, and energy. Main concern: Sugar content is relatively high—consume in moderation, especially for children. No dangerous ingredients identified by regulators.",
+  "ingredient_categories": {
+    "safe": {
+      "percentage": "75-80%",
+      "ingredients": [
+        "Barley, Wheat (Cereal Extracts)",
+        "Cocoa Solids", 
+        "Milk Solids",
+        "Protein Isolates",
+        "Vitamins, Minerals",
+        "Maltodextrins"
+      ]
+    },
+    "low_risk": {
+      "percentage": "05-10%",
+      "ingredients": [
+        "Liquid Glucose",
+        "Emulsifiers (322, 471)", 
+        "Raising Agents (500(ii))",
+        "Artificial Flavoring Substances"
+      ]
+    },
+    "not_great": {
+      "percentage": "15-20%",
+      "ingredients": [
+        "Sugar",
+        "Permitted Color (150c, Caramel)"
+      ]
+    },
+    "dangerous": {
+      "percentage": "0%",
+      "ingredients": ["None"]
+    }
+  }
+}
 
-    End with an Overall Safety Verdict:
-
-    Safe (no concerning ingredients)
-
-    Conditionally Safe (some concerns, but acceptable in low use)
-
-    Potentially Unsafe (clear risks or heavy restrictions)
-
-    Keep your response concise, bullet-pointed, and based on reliable, up-to-date sources.
+Remember: Return ONLY valid JSON without any markdown formatting or additional text.
     """
 
     payload = {

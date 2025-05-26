@@ -527,7 +527,7 @@ export default function ProfileScreen() {
                     fontFamily="Baloo2SemiBold" 
                     color="#363636"
                   >
-                    Profile
+                    Back
                   </Text>
                 </Stack>
               </TouchableOpacity>

@@ -6,13 +6,13 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, Text } from '@tamagui/core';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import CameraView from '@/components/CameraView';
 import { analyzeIngredients } from '@/lib/api';
-import { CapturedImage } from '@/lib/camera';
+import { CapturedImage, processImageUri, verifyImageUri, copyImageToPermanentLocation } from '@/lib/camera';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -94,13 +94,44 @@ const AnimatedButton: React.FC<AnimatedButtonProps> = ({
 
 export default function ScanScreen() {
   const router = useRouter();
+  const { directCamera } = useLocalSearchParams<{ directCamera?: string }>();
   const [showCamera, setShowCamera] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  const handleImageCaptured = (image: CapturedImage) => {
-    setImageUri(image.uri);
-    setShowCamera(false);
+  // Auto-open camera if directCamera param is passed
+  useEffect(() => {
+    if (directCamera === 'true') {
+      setShowCamera(true);
+    }
+  }, [directCamera]);
+  
+  const handleImageCaptured = async (image: { uri: string }) => {
+    console.log('Image captured:', image.uri);
+    if (image.uri) {
+      try {
+        // Copy image to permanent location first
+        const permanentUri = await copyImageToPermanentLocation(image.uri);
+        
+        // Process and verify the permanent URI
+        const processedUri = processImageUri(permanentUri);
+        const isValid = await verifyImageUri(processedUri);
+        
+        if (isValid) {
+          setImageUri(processedUri);
+          setShowCamera(false);
+        } else {
+          console.error('Image verification failed for URI:', processedUri);
+          Alert.alert('Error', 'Failed to save captured image. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error processing captured image:', error);
+        Alert.alert('Error', 'Failed to save captured image. Please try again.');
+      }
+    } else {
+      console.error('No image URI received');
+      Alert.alert('Error', 'Failed to capture image. Please try again.');
+    }
   };
 
   const handleImageFromGallery = async () => {
@@ -111,11 +142,33 @@ export default function ScanScreen() {
         quality: 1,
       });
 
-      if (!result.canceled) {
-        setImageUri(result.assets[0].uri);
+      if (!result.canceled && result.assets[0]) {
+        console.log('Gallery image selected:', result.assets[0].uri);
+        
+        try {
+          // Copy gallery image to permanent location first
+          const permanentUri = await copyImageToPermanentLocation(result.assets[0].uri);
+          
+          // Process and verify the permanent URI
+          const processedUri = processImageUri(permanentUri);
+          const isValid = await verifyImageUri(processedUri);
+          
+          if (isValid) {
+            setImageUri(processedUri);
+          } else {
+            console.error('Gallery image verification failed for URI:', processedUri);
+            Alert.alert('Error', 'Failed to load selected image. Please try another image.');
+          }
+        } catch (error) {
+          console.error('Error processing gallery image:', error);
+          Alert.alert('Error', 'Failed to save selected image. Please try another image.');
+        }
+      } else {
+        console.log('Gallery selection cancelled or no image selected');
       }
     } catch (error) {
-      console.log('Error picking image:', error);
+      console.error('Error picking image from gallery:', error);
+      Alert.alert('Error', 'Failed to select image from gallery. Please try again.');
     }
   };
 
@@ -296,6 +349,13 @@ export default function ScanScreen() {
                       resizeMode: 'contain'
                     }}
                     defaultSource={require('@/assets/placeholder.png')}
+                    onError={(error) => {
+                      console.error('Image loading error:', error);
+                      Alert.alert('Error', 'Failed to load image. Please try taking another photo.');
+                    }}
+                    onLoad={() => {
+                      console.log('Image loaded successfully');
+                    }}
                   />
                 </Stack>
 

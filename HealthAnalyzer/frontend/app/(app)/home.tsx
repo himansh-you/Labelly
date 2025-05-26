@@ -1,8 +1,9 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { TouchableOpacity, ScrollView } from 'react-native';
+import { TouchableOpacity, ScrollView, Text as RNText } from 'react-native';
 import { Stack, Text, Button } from '@tamagui/core';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 import { Logo } from '@/components/Logo';
 import { 
   Ionicons, 
@@ -21,60 +22,7 @@ import Animated, {
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
 
-// Icon components for the feature cards
-const ScanIcon = () => (
-  <Stack 
-    width={48} 
-    height={48} 
-    backgroundColor="#363636" 
-    borderRadius={12} 
-    alignItems="center" 
-    justifyContent="center"
-  >
-    <Ionicons name="camera-outline" size={24} color="white" />
-  </Stack>
-);
-
-const ChatIcon = () => (
-  <Stack 
-    width={48} 
-    height={48} 
-    backgroundColor="#363636" 
-    borderRadius={12} 
-    alignItems="center" 
-    justifyContent="center"
-  >
-    <Ionicons name="chatbubble-outline" size={24} color="white" />
-  </Stack>
-);
-
-const HistoryIcon = () => (
-  <Stack 
-    width={48} 
-    height={48} 
-    backgroundColor="#363636" 
-    borderRadius={12} 
-    alignItems="center" 
-    justifyContent="center"
-  >
-    <Ionicons name="time-outline" size={24} color="white" />
-  </Stack>
-);
-
-const CompareIcon = () => (
-  <Stack 
-    width={48} 
-    height={48} 
-    backgroundColor="#363636" 
-    borderRadius={12} 
-    alignItems="center" 
-    justifyContent="center"
-  >
-    <MaterialIcons name="compare-arrows" size={24} color="white" />
-  </Stack>
-);
-
-// Feature Card Component with click animation and fixed height
+// Enhanced Feature Card Component with improved animations
 interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
@@ -85,29 +33,64 @@ interface FeatureCardProps {
 const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onPress }) => {
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
+  const translateY = useSharedValue(0);
+  const shadowOpacity = useSharedValue(0.1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [
+      { scale: scale.value },
+      { translateY: translateY.value }
+    ],
     opacity: opacity.value,
   }));
 
+  const shadowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: shadowOpacity.value,
+    elevation: shadowOpacity.value * 30, // For Android
+  }));
+
   const handlePressIn = () => {
-    scale.value = withSpring(0.95, {
-      damping: 15,
-      stiffness: 300,
+    // More subtle and refined animation
+    scale.value = withSpring(0.96, {
+      damping: 20,
+      stiffness: 400,
     });
-    opacity.value = withTiming(0.8, { duration: 100 });
+    opacity.value = withTiming(0.9, { duration: 150 });
+    translateY.value = withSpring(2, {
+      damping: 20,
+      stiffness: 400,
+    });
+    shadowOpacity.value = withTiming(0.05, { duration: 150 });
   };
 
   const handlePressOut = () => {
+    // Smooth return animation
     scale.value = withSpring(1, {
-      damping: 15,
-      stiffness: 300,
+      damping: 18,
+      stiffness: 350,
     });
-    opacity.value = withTiming(1, { duration: 100 });
+    opacity.value = withTiming(1, { duration: 200 });
+    translateY.value = withSpring(0, {
+      damping: 18,
+      stiffness: 350,
+    });
+    shadowOpacity.value = withTiming(0.1, { duration: 200 });
   };
 
   const handlePress = () => {
+    // Quick bounce effect on press
+    scale.value = withSpring(0.98, {
+      damping: 25,
+      stiffness: 500,
+    });
+    
+    setTimeout(() => {
+      scale.value = withSpring(1, {
+        damping: 18,
+        stiffness: 350,
+      });
+    }, 100);
+    
     runOnJS(onPress)();
   };
 
@@ -116,32 +99,53 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onP
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[{ flex: 1, marginHorizontal: 6, marginVertical: 8 }, animatedStyle]}
+      style={[
+        { 
+          flex: 1, 
+          marginHorizontal: 6, 
+          marginVertical: 8 
+        }, 
+        animatedStyle
+      ]}
+      activeOpacity={1} // Disable default opacity change
     >
       <AnimatedStack
-        backgroundColor="#D3D3D3"
-        borderRadius={20}
-        padding="$6"
-        alignItems="center"
-        justifyContent="center"
-        height={180}
-        space="$3"
-        shadowColor="#000"
-        shadowOffset={{ width: 0, height: 2 }}
-        shadowOpacity={0.1}
-        shadowRadius={4}
-        elevation={3}
+        style={[
+          {
+            backgroundColor: "#D3D3D3",
+            borderRadius: 20,
+            padding: 24,
+            alignItems: "center",
+            justifyContent: "center",
+            height: 180,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowRadius: 8,
+          },
+          shadowStyle
+        ]}
       >
-        {icon}
+        {/* Icon with subtle animation */}
+        <AnimatedStack
+          style={{
+            marginBottom: 12,
+            transform: [{ scale: scale.value * 0.98 + 0.02 }] // Subtle icon scaling
+          }}
+        >
+          {icon}
+        </AnimatedStack>
+
         <Text
           fontSize={16}
           fontWeight="600"
           color="#363636"
           fontFamily="Baloo2SemiBold"
           textAlign="center"
+          marginBottom="$2"
         >
           {title}
         </Text>
+        
         <Text
           fontSize={12}
           color="#363636"
@@ -158,12 +162,125 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ icon, title, description, onP
   );
 };
 
-// Bottom Navigation Component with larger scan button and filled camera
+// Enhanced Icon components with subtle hover states
+const ScanIcon = () => {
+  const iconScale = useSharedValue(1);
+  
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <AnimatedStack 
+      style={[
+        {
+          width: 48, 
+          height: 48, 
+          backgroundColor: "#363636", 
+          borderRadius: 12, 
+          alignItems: "center", 
+          justifyContent: "center"
+        },
+        iconAnimatedStyle
+      ]}
+    >
+      <Ionicons name="camera-outline" size={24} color="white" />
+    </AnimatedStack>
+  );
+};
+
+const ChatIcon = () => {
+  const iconScale = useSharedValue(1);
+  
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <AnimatedStack 
+      style={[
+        {
+          width: 48, 
+          height: 48, 
+          backgroundColor: "#363636", 
+          borderRadius: 12, 
+          alignItems: "center", 
+          justifyContent: "center"
+        },
+        iconAnimatedStyle
+      ]}
+    >
+      <Ionicons name="chatbubble-outline" size={24} color="white" />
+    </AnimatedStack>
+  );
+};
+
+const HistoryIcon = () => {
+  const iconScale = useSharedValue(1);
+  
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <AnimatedStack 
+      style={[
+        {
+          width: 48, 
+          height: 48, 
+          backgroundColor: "#363636", 
+          borderRadius: 12, 
+          alignItems: "center", 
+          justifyContent: "center"
+        },
+        iconAnimatedStyle
+      ]}
+    >
+      <Ionicons name="time-outline" size={24} color="white" />
+    </AnimatedStack>
+  );
+};
+
+const CompareIcon = () => {
+  const iconScale = useSharedValue(1);
+  
+  const iconAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
+
+  return (
+    <AnimatedStack 
+      style={[
+        {
+          width: 48, 
+          height: 48, 
+          backgroundColor: "#363636", 
+          borderRadius: 12, 
+          alignItems: "center", 
+          justifyContent: "center"
+        },
+        iconAnimatedStyle
+      ]}
+    >
+      <MaterialIcons name="compare-arrows" size={24} color="white" />
+    </AnimatedStack>
+  );
+};
+
+// Bottom Navigation Component with FUNCTIONAL HISTORY BUTTON
 const BottomNavigation = () => {
   const router = useRouter();
 
   const handleScanPress = () => {
-    router.push('/(app)/scan');
+    router.push('/(app)/scan?directCamera=true');
+  };
+
+  const handleChatPress = () => {
+    router.push('/(app)/chatbot');
+  };
+
+  const handleHistoryPress = () => {
+    router.push('/(app)/history');
   };
 
   const handleProfilePress = () => {
@@ -179,71 +296,93 @@ const BottomNavigation = () => {
       backgroundColor="white"
       borderTopWidth={1}
       borderTopColor="#E0E0E0"
-      paddingTop="$4"
-      paddingBottom="$8"
+      paddingTop="$2"
+      paddingBottom="$4"
       paddingHorizontal="$6"
     >
       <Stack flexDirection="row" alignItems="center" justifyContent="space-around">
         {/* Home - Active */}
-        <TouchableOpacity>
-          <Stack alignItems="center" space="$1">
-            <Ionicons name="home" size={24} color="#363636" />
-            <Text fontSize={11} fontFamily="Baloo2SemiBold" color="#363636">
+        <TouchableOpacity activeOpacity={0.7}>
+          <Stack alignItems="center" space="$0.5">
+            <Ionicons name="home" size={22} color="#363636" />
+            <RNText style={{
+              fontSize: 10,
+              fontFamily: "Baloo2SemiBold",
+              color: "#363636",
+              textAlign: "center"
+            }}>
               Home
-            </Text>
+            </RNText>
           </Stack>
         </TouchableOpacity>
 
         {/* Chat */}
-        <TouchableOpacity>
-          <Stack alignItems="center" space="$1">
-            <Ionicons name="chatbubble-outline" size={24} color="#B0B0B0" />
-            <Text fontSize={11} fontFamily="Baloo2Regular" color="#B0B0B0">
+        <TouchableOpacity onPress={handleChatPress} activeOpacity={0.7}>
+          <Stack alignItems="center" space="$0.5">
+            <Ionicons name="chatbubble-outline" size={22} color="#B0B0B0" />
+            <RNText style={{
+              fontSize: 10,
+              fontFamily: "Baloo2Regular",
+              color: "#B0B0B0",
+              textAlign: "center"
+            }}>
               Chat
-            </Text>
+            </RNText>
           </Stack>
         </TouchableOpacity>
 
-        {/* Scan (Center - Elevated) - Increased size */}
-        <TouchableOpacity onPress={handleScanPress}>
-          <Stack alignItems="center" marginTop={-32}>
-            <Stack
-              width={85}
-              height={85}
-              backgroundColor="#363636"
-              borderRadius={42.5}
-              alignItems="center"
-              justifyContent="center"
-              borderWidth={4}
-              borderColor="white"
-              shadowColor="#000"
-              shadowOffset={{ width: 0, height: 4 }}
-              shadowOpacity={0.3}
-              shadowRadius={8}
-              elevation={8}
-            >
-              <Ionicons name="camera" size={32} color="white" />
-            </Stack>
+        {/* Scan (Center - MUCH LARGER like reference) */}
+        <TouchableOpacity 
+          onPress={handleScanPress}
+          activeOpacity={0.8}
+        >
+          <Stack 
+            backgroundColor="#363636" 
+            width={85}
+            height={85}
+            borderRadius={42.5}
+            alignItems="center" 
+            justifyContent="center"
+            marginTop={-20}
+            borderWidth={5}
+            borderColor="white"
+            shadowColor="#000"
+            shadowOffset={{ width: 0, height: 6 }}
+            shadowOpacity={0.25}
+            shadowRadius={10}
+            elevation={15}
+          >
+            <Ionicons name="camera" size={36} color="white" />
           </Stack>
         </TouchableOpacity>
 
-        {/* History */}
-        <TouchableOpacity>
-          <Stack alignItems="center" space="$1">
-            <Ionicons name="time-outline" size={24} color="#B0B0B0" />
-            <Text fontSize={11} fontFamily="Baloo2Regular" color="#B0B0B0">
+        {/* History - NOW FUNCTIONAL */}
+        <TouchableOpacity onPress={handleHistoryPress} activeOpacity={0.7}>
+          <Stack alignItems="center" space="$0.5">
+            <Ionicons name="time-outline" size={22} color="#B0B0B0" />
+            <RNText style={{
+              fontSize: 10,
+              fontFamily: "Baloo2Regular",
+              color: "#B0B0B0",
+              textAlign: "center"
+            }}>
               History
-            </Text>
+            </RNText>
           </Stack>
         </TouchableOpacity>
 
         {/* Profile */}
-        <TouchableOpacity onPress={handleProfilePress}>
-          <Stack alignItems="center" space="$1">
-            <Ionicons name="person-outline" size={24} color="#B0B0B0" />
-            <Text fontSize={11} fontFamily="Baloo2Regular" color="#B0B0B0">
+        <TouchableOpacity onPress={handleProfilePress} activeOpacity={0.7}>
+          <Stack alignItems="center" space="$0.5">
+            <Ionicons name="person-outline" size={22} color="#B0B0B0" />
+            <RNText style={{
+              fontSize: 10,
+              fontFamily: "Baloo2Regular",
+              color: "#B0B0B0",
+              textAlign: "center"
+            }}>
               Profile
-            </Text>
+            </RNText>
           </Stack>
         </TouchableOpacity>
       </Stack>
@@ -253,10 +392,24 @@ const BottomNavigation = () => {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  // Function to get user's first name for greeting
+  const getUserFirstName = () => {
+    if (user?.displayName) {
+      // Extract first name from display name
+      return user.displayName.split(' ')[0];
+    }
+    if (user?.email) {
+      // Extract name from email (before @)
+      return user.email.split('@')[0];
+    }
+    return 'there'; // Fallback greeting
+  };
 
   const handleProductScan = () => {
     console.log('Product Scanner pressed');
-    router.push('/(app)/scan');
+    router.push('/(app)/scan?directCamera=true');
   };
 
   const handleChatBot = () => {
@@ -266,7 +419,7 @@ export default function HomeScreen() {
 
   const handleHistory = () => {
     console.log('History pressed');
-    // Navigate to history screen when available
+    router.push('/(app)/history');
   };
 
   const handleCompare = () => {
@@ -282,13 +435,13 @@ export default function HomeScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
         >
-          <Stack flex={1} paddingHorizontal="$5" paddingTop="$16" paddingBottom={120}>
+          <Stack flex={1} paddingHorizontal="$5" paddingTop="$16" paddingBottom={90}>
             {/* Original Logo - kept unchanged */}
             <Stack alignItems="center" marginBottom="$10">
               <Logo width={200} height={67} color="#363636" />
             </Stack>
 
-            {/* Get Started Title */}
+            {/* Personalized Greeting Title */}
             <Stack marginBottom="$8" marginLeft="$2">
               <Text
                 fontSize={32}
@@ -296,11 +449,11 @@ export default function HomeScreen() {
                 color="#363636"
                 fontFamily="Baloo2SemiBold"
               >
-                Get Started
+                Hi! {getUserFirstName()}
               </Text>
             </Stack>
 
-            {/* Feature Cards Grid with animations */}
+            {/* Feature Cards Grid with enhanced animations */}
             <Stack flex={1} space="$1">
               {/* First Row */}
               <Stack flexDirection="row" marginBottom="$2">
