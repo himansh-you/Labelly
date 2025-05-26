@@ -1,7 +1,11 @@
 import { auth } from './firebase';
 
 // Base URL for API calls
+<<<<<<< HEAD
+const API_BASE_URL = 'http://192.168.1.4:5000';
+=======
 const API_BASE_URL = 'http://192.168.1.5:5000';
+>>>>>>> c0db01b689323e319dc6a4565271d04094877bf5
 // Use 'http://localhost:5000' for web or 'http://127.0.0.1:5000' for iOS simulator
 
 
