@@ -55,6 +55,10 @@ export default function AuthLayout() {
   return (
     <Stack>
       <Stack.Screen 
+        name="onboarding" 
+        options={authScreenOptions}
+      />
+      <Stack.Screen 
         name="login" 
         options={authScreenOptions}
       />

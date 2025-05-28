@@ -101,7 +101,9 @@ const AccordionCard: React.FC<AccordionCardProps> = ({
   const scale = useSharedValue(1);
 
   const styles = getCategoryStyles(category);
-  const ingredientCount = data.ingredients.length;
+  // Filter out "None" entries when counting ingredients
+  const filteredIngredients = data.ingredients.filter(ing => ing !== "None");
+  const ingredientCount = filteredIngredients.length;
 
   // Calculate content height outside of animated style
   const contentHeight = useMemo(() => {
@@ -263,8 +265,8 @@ const AccordionCard: React.FC<AccordionCardProps> = ({
                   numberOfLines={2}
                   lineHeight={18}
                 >
-                  {data.ingredients.slice(0, 3).join(', ')}
-                  {ingredientCount > 3 && ` +${ingredientCount - 3} more`}
+                  {filteredIngredients.slice(0, 3).join(', ')}
+                  {filteredIngredients.length > 3 && ` +${filteredIngredients.length - 3} more`}
                 </Text>
               )}
             </Stack>

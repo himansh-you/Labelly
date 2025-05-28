@@ -169,6 +169,7 @@ export default function ScanScreen() {
           
           if (isValid) {
             setImageUri(processedUri);
+            setShowCamera(false);
           } else {
             console.error('Gallery image verification failed for URI:', processedUri);
             Alert.alert('Error', 'Failed to load selected image. Please try another image.');

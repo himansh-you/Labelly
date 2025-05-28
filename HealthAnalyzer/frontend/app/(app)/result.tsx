@@ -59,10 +59,10 @@ type TabType = 'Ingredients' | 'Compare' | 'Alternatives';
 
 // Safety Bar Component matching the reference image
 const SafetyBar = ({ analysisData }: { analysisData: AnalysisResult }) => {
-  // Calculate counts from ingredients
-  const safeCount = analysisData.ingredient_categories.safe.ingredients.length;
-  const lowRiskCount = analysisData.ingredient_categories.low_risk.ingredients.length;
-  const notGreatCount = analysisData.ingredient_categories.not_great.ingredients.length;
+  // Calculate counts from ingredients - filter out "None" from all categories
+  const safeCount = analysisData.ingredient_categories.safe.ingredients.filter(ing => ing !== "None").length;
+  const lowRiskCount = analysisData.ingredient_categories.low_risk.ingredients.filter(ing => ing !== "None").length;
+  const notGreatCount = analysisData.ingredient_categories.not_great.ingredients.filter(ing => ing !== "None").length;
   const dangerousCount = analysisData.ingredient_categories.dangerous.ingredients.filter(ing => ing !== "None").length;
   
   const totalCount = safeCount + lowRiskCount + notGreatCount + dangerousCount;
@@ -382,18 +382,14 @@ export default function ResultScreen() {
         setIsLoading(true);
         setError(null);
 
-        // If analyzeResult is provided, use it directly
         if (analyzeResult) {
           try {
             const parsedResult = JSON.parse(analyzeResult);
             
-            // Parse the analysis content to extract structured data
             const analysisContent = parsedResult.analysis || '';
             console.log('Raw analysis content:', analysisContent);
             
-            // Try to extract JSON from the analysis content
             try {
-              // Look for JSON in the content
               const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const extractedData = JSON.parse(jsonMatch[0]);
@@ -495,12 +491,12 @@ export default function ResultScreen() {
 
   const handleNewScan = () => {
     setSheetOpen(false);
-    router.push('/(app)/scan');
+    router.push('/(app)/scan?directCamera=true');
   };
 
   const handleBack = () => {
     setSheetOpen(false);
-    router.back();
+    router.push('/(app)/scan?directCamera=true');
   };
 
   if (isLoading) {
