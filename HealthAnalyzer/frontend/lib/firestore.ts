@@ -152,4 +152,34 @@ export const getUserHistory = async (userId: string): Promise<HistoryItem[]> => 
     console.error('Error getting user history:', error);
     throw error;
   }
+};
+
+// Add a new function to get multiple scans by IDs for comparison
+export const getScansByIds = async (scanIds: string[]) => {
+  try {
+    const scans: ScanData[] = [];
+    
+    for (const scanId of scanIds) {
+      const scan = await getScanById(scanId);
+      if (scan) {
+        scans.push(scan);
+      }
+    }
+    
+    return scans;
+  } catch (error) {
+    console.error('Error getting scans by IDs:', error);
+    throw error;
+  }
+};
+
+// Add a function to get comparison data for specific products
+export const getComparisonData = async (userId: string, scanIds: string[]) => {
+  try {
+    const userHistory = await getUserHistory(userId);
+    return userHistory.filter(item => scanIds.includes(item.id!));
+  } catch (error) {
+    console.error('Error getting comparison data:', error);
+    throw error;
+  }
 }; 

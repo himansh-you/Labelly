@@ -410,7 +410,7 @@ export default function HomeScreen() {
 
   const handleCompare = () => {
     console.log('Compare pressed');
-    // Navigate to compare screen when available
+    router.push('/(app)/compare');
   };
 
   return (

@@ -331,6 +331,10 @@ export default function AppLayout() {
         name="settings" 
         options={defaultScreenOptions}
       />
+      <Stack.Screen 
+        name="compare" 
+        options={defaultScreenOptions}
+      />
     </Stack>
   );
 } 

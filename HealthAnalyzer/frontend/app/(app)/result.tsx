@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Image, Alert, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { FontAwesome } from '@expo/vector-icons';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome, Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Stack, 
@@ -529,7 +528,13 @@ const ProductSummaryCard = ({
 };
 
 // Updated Tab Content Component
-const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisData: AnalysisResult }) => {
+const TabContent = ({ activeTab, analysisData, scanId }: { 
+  activeTab: TabType; 
+  analysisData: AnalysisResult;
+  scanId?: string;
+}) => {
+  const router = useRouter();
+  
   if (activeTab === 'Ingredients') {
     return (
       <Stack space="$4">
@@ -569,13 +574,74 @@ const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisD
   }
 
   if (activeTab === 'Compare') {
+    const handleCompareWithOthers = () => {
+      if (scanId) {
+        router.push(`/(app)/compare?compareWith=${scanId}`);
+      } else {
+        router.push('/(app)/compare');
+      }
+    };
+
     return (
-      <YStack 
-        alignItems="center"
-        justifyContent="center"
-        minHeight={200}
-      >
-        <Text fontSize={16} color="#666" fontFamily="Baloo2Regular">Product comparison coming soon</Text>
+      <YStack space="$4" alignItems="center" justifyContent="center" minHeight={200}>
+        <Stack
+          backgroundColor="#F8F9FA"
+          borderRadius={16}
+          padding="$6"
+          alignItems="center"
+          space="$4"
+          borderWidth={1}
+          borderColor="rgba(54, 54, 54, 0.1)"
+        >
+          <Stack
+            backgroundColor="#4CAF50"
+            borderRadius={30}
+            width={60}
+            height={60}
+            alignItems="center"
+            justifyContent="center"
+          >
+            <MaterialIcons name="compare-arrows" size={30} color="white" />
+          </Stack>
+          
+          <YStack space="$2" alignItems="center">
+            <Text
+              fontSize={18}
+              fontWeight="600"
+              color="#363636"
+              fontFamily="Baloo2SemiBold"
+              textAlign="center"
+            >
+              Compare Products
+            </Text>
+            <Text
+              fontSize={14}
+              color="#666"
+              fontFamily="Baloo2Regular"
+              textAlign="center"
+              lineHeight={20}
+            >
+              See how this product stacks up against your other scanned items
+            </Text>
+          </YStack>
+
+          <AnimatedButton
+            onPress={handleCompareWithOthers}
+            backgroundColor="#363636"
+            variant="primary"
+          >
+            <XStack alignItems="center" space="$3">
+              <MaterialIcons name="compare-arrows" size={18} color="#FDFAF6" />
+              <Text 
+                color="#FDFAF6"
+                fontSize={14}
+                fontFamily="Baloo2SemiBold"
+              >
+                Start Comparison
+              </Text>
+            </XStack>
+          </AnimatedButton>
+        </Stack>
       </YStack>
     );
   }
@@ -984,7 +1050,11 @@ export default function ResultScreen() {
                   <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
                   {/* Content based on active tab */}
-                  <TabContent activeTab={activeTab} analysisData={analysisData} />
+                  <TabContent 
+                    activeTab={activeTab} 
+                    analysisData={analysisData} 
+                    scanId={scanId}
+                  />
                 </YStack>
               </ScrollView>
 
