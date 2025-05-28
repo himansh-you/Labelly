@@ -1,7 +1,7 @@
 import { auth } from './firebase';
 
 // Base URL for API calls
-const API_BASE_URL = 'http://192.168.1.5:5000';
+const API_BASE_URL = 'https://labelly.onrender.com';
 // Use 'http://localhost:5000' for web or 'http://127.0.0.1:5000' for iOS simulator
 
 

@@ -12,7 +12,7 @@ import {
 import { auth } from '@/lib/firebase';
 
 // Base URL for API calls - same as in lib/api.ts
-const API_BASE_URL = 'http://192.168.1.5:5000';
+const API_BASE_URL = 'https://labelly.onrender.com';
 
 // Add PurchaseLinks interface
 interface PurchaseLinks {

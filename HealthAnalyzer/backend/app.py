@@ -302,7 +302,7 @@ Example response:
 
     
     payload = {
-        "model": "sonar",
+        "model": "sonar-pro",
         "messages": [
             {"role": "system", "content": "Be precise and concise."},
             {
@@ -525,7 +525,7 @@ Focus on realistic, widely available alternatives that specifically address the 
 """
 
     payload = {
-        "model": "sonar", 
+        "model": "sonar-pro", 
         "messages": [
             {"role": "system", "content": "You are a nutrition expert providing healthier product alternatives. Be practical and specific."},
             {"role": "user", "content": prompt}
