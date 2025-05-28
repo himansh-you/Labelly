@@ -128,6 +128,15 @@ Your task includes:
      - A short reason for the classification
      - The amount present in the product (if known; otherwise use "unknown")
 
+Additionally:
+
+5. Include an "allergen_additive_warnings" field:
+   - A list of any potential allergens (e.g., milk, soy, gluten) or additives (e.g., colorants, preservatives) if mentioned or implied.
+   - If none are found, use ["None"].
+
+6. Include a "product_summary" field:
+   - A single-sentence summary that briefly describes the nature and safety of the product.
+
 Use this exact JSON structure:
 
 {
@@ -175,7 +184,9 @@ Use this exact JSON structure:
         }
       ]
     }
-  }
+  },
+  "allergen_additive_warnings": ["list of allergens or additives, or ['None']"],
+  "product_summary": "string - One sentence describing the product's general purpose and safety"
 }
 
 Example response:
@@ -279,9 +290,13 @@ Example response:
       "ingredients": ["None"],
       "details": []
     }
-  }
+  },
+  "allergen_additive_warnings": ["Milk", "Artificial Flavoring Substances", "Caramel Color"],
+  "product_summary": "A chocolate malt drink mix with mostly nutritious ingredients, though high in sugar and includes additives."
 }
 """
+
+
 
 
     

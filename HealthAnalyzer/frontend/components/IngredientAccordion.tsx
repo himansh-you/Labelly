@@ -18,6 +18,7 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 interface IngredientDetail {
   ingredient: string;
   reason: string;
+  amount: string;
 }
 
 interface CategoryData {
@@ -329,16 +330,36 @@ const AccordionCard: React.FC<AccordionCardProps> = ({
                 borderLeftWidth={3}
                 borderLeftColor={styles.borderColor}
               >
-                <Text
-                  fontSize={16}
-                  fontWeight="600"
-                  color="#363636"
-                  fontFamily="Baloo2SemiBold"
-                  marginBottom="$1"
-                  lineHeight={20}
-                >
-                  {detail.ingredient}
-                </Text>
+                <Stack flexDirection="row" justifyContent="space-between" alignItems="flex-start" marginBottom="$1">
+                  <Text
+                    fontSize={16}
+                    fontWeight="600"
+                    color="#363636"
+                    fontFamily="Baloo2SemiBold"
+                    lineHeight={20}
+                    flex={1}
+                  >
+                    {detail.ingredient}
+                  </Text>
+                  {detail.amount && detail.amount !== "unknown" && (
+                    <Stack
+                      backgroundColor={styles.badgeColor}
+                      paddingHorizontal="$2"
+                      paddingVertical="$1"
+                      borderRadius={8}
+                      marginLeft="$2"
+                    >
+                      <Text
+                        fontSize={12}
+                        fontWeight="600"
+                        color="#FFFFFF"
+                        fontFamily="Baloo2SemiBold"
+                      >
+                        {detail.amount}
+                      </Text>
+                    </Stack>
+                  )}
+                </Stack>
                 <Text
                   fontSize={14}
                   color="#666"

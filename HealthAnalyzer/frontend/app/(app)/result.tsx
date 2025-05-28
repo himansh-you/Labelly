@@ -38,20 +38,42 @@ interface AnalysisResult {
     safe: {
       percentage: string;
       ingredients: string[];
+      details: Array<{
+        ingredient: string;
+        reason: string;
+        amount: string;
+      }>;
     };
     low_risk: {
       percentage: string;
       ingredients: string[];
+      details: Array<{
+        ingredient: string;
+        reason: string;
+        amount: string;
+      }>;
     };
     not_great: {
       percentage: string;
       ingredients: string[];
+      details: Array<{
+        ingredient: string;
+        reason: string;
+        amount: string;
+      }>;
     };
     dangerous: {
       percentage: string;
       ingredients: string[];
+      details: Array<{
+        ingredient: string;
+        reason: string;
+        amount: string;
+      }>;
     };
   };
+  allergen_additive_warnings: string[];
+  product_summary: string;
 }
 
 // Tab type - changed Reviews to Compare
@@ -179,37 +201,333 @@ const IngredientCategory = ({
   </YStack>
 );
 
-// Tab Navigation Component matching reference design
+// Enhanced Tab Navigation Component with improved design and smooth animations
 const TabNavigation = ({ 
   activeTab, 
   onTabChange 
 }: { 
   activeTab: TabType; 
   onTabChange: (tab: TabType) => void;
-}) => (
-  <XStack backgroundColor="#E5E5E5" borderRadius="$4" padding="$1" marginVertical="$4">
-    {(['Ingredients', 'Compare', 'Alternatives'] as TabType[]).map((tab) => (
-      <Button
-        key={tab}
-        flex={1}
-        onPress={() => onTabChange(tab)}
-        backgroundColor={activeTab === tab ? "#333333" : "transparent"}
-        borderRadius="$3"
-        size="$3"
-        fontWeight={activeTab === tab ? "600" : "400"}
-        color={activeTab === tab ? "white" : "#666"}
-        fontFamily={activeTab === tab ? "Baloo2SemiBold" : "Baloo2Regular"}
-        pressStyle={{
-          backgroundColor: activeTab === tab ? "#222222" : "#D0D0D0"
-        }}
-      >
-        {tab}
-      </Button>
-    ))}
-  </XStack>
-);
+}) => {
+  const tabs: TabType[] = ['Ingredients', 'Compare', 'Alternatives'];
+  const activeIndex = tabs.indexOf(activeTab);
+  
+  // Animated value for the sliding indicator
+  const translateX = useSharedValue(0);
+  const [containerWidth, setContainerWidth] = React.useState(0);
+  
+  // Update indicator position when active tab changes
+  React.useEffect(() => {
+    if (containerWidth > 0) {
+      const tabWidth = (containerWidth - 16) / tabs.length; // 16 is total padding (8px each side)
+      const targetX = activeIndex * tabWidth;
+      translateX.value = withTiming(targetX, {
+        duration: 300,
+      });
+    }
+  }, [activeIndex, containerWidth]);
+  
+  // Animated style for the sliding indicator
+  const indicatorStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateX: translateX.value,
+        },
+      ],
+    };
+  });
 
-// Tab Content Component
+  const handleLayout = (event: any) => {
+    const { width } = event.nativeEvent.layout;
+    setContainerWidth(width);
+  };
+
+  return (
+    <Stack position="relative" marginVertical="$4">
+      <XStack 
+        backgroundColor="#F8F9FA" 
+        borderRadius="$4" 
+        padding="$0.5" 
+        borderWidth={1}
+        borderColor="rgba(54, 54, 54, 0.06)"
+        height={40}
+        onLayout={handleLayout}
+      >
+        {/* Animated sliding indicator */}
+        {containerWidth > 0 && (
+          <Animated.View
+            style={[
+              {
+                position: 'absolute',
+                top: 4,
+                left: 4,
+                bottom: 4,
+                width: (containerWidth - 16) / tabs.length,
+                backgroundColor: "#363636",
+                borderRadius: 12,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 4,
+              },
+              indicatorStyle,
+            ]}
+          />
+        )}
+        
+        {tabs.map((tab, index) => {
+          const isActive = activeTab === tab;
+          return (
+            <AnimatedTabButton
+              key={tab}
+              isActive={isActive}
+              onPress={() => onTabChange(tab)}
+              title={tab}
+              index={index}
+            />
+          );
+        })}
+      </XStack>
+    </Stack>
+  );
+};
+
+// Animated Tab Button Component with improved animations
+interface AnimatedTabButtonProps {
+  isActive: boolean;
+  onPress: () => void;
+  title: string;
+  index: number;
+}
+
+const AnimatedTabButton: React.FC<AnimatedTabButtonProps> = ({ isActive, onPress, title, index }) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+  const textScale = useSharedValue(isActive ? 1.02 : 1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  const textAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: textScale.value }],
+  }));
+
+  // Update text scale when active state changes
+  React.useEffect(() => {
+    textScale.value = withTiming(isActive ? 1.02 : 1, { 
+      duration: 250 
+    });
+  }, [isActive]);
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.97, {
+      damping: 25,
+      stiffness: 600,
+    });
+    opacity.value = withTiming(0.8, { duration: 100 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, {
+      damping: 20,
+      stiffness: 400,
+    });
+    opacity.value = withTiming(1, { duration: 150 });
+  };
+
+  const handlePress = () => {
+    scale.value = withSpring(0.99, {
+      damping: 30,
+      stiffness: 700,
+    });
+    
+    setTimeout(() => {
+      scale.value = withSpring(1, {
+        damping: 20,
+        stiffness: 400,
+      });
+    }, 80);
+    
+    runOnJS(onPress)();
+  };
+
+  return (
+    <AnimatedTouchableOpacity
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[
+        {
+          flex: 1,
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          borderRadius: 12,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'transparent',
+          zIndex: 10, // Ensure buttons are above the indicator
+          height: 36,
+        },
+        animatedStyle
+      ]}
+      activeOpacity={1}
+    >
+      <Animated.View style={textAnimatedStyle}>
+        <Text
+          fontSize={14}
+          fontWeight={isActive ? "600" : "500"}
+          color={isActive ? "#FDFAF6" : "#666"}
+          fontFamily={isActive ? "Baloo2SemiBold" : "Baloo2Medium"}
+          textAlign="center"
+        >
+          {title}
+        </Text>
+      </Animated.View>
+    </AnimatedTouchableOpacity>
+  );
+};
+
+// Allergen Warning Component
+const AllergenWarningCard = ({ warnings }: { warnings: string[] }) => {
+  if (!warnings || warnings.length === 0 || (warnings.length === 1 && warnings[0] === "None")) {
+    return null;
+  }
+
+  return (
+    <Stack
+      backgroundColor="#FFF3E0"
+      borderRadius={16}
+      padding="$4"
+      borderLeftWidth={4}
+      borderLeftColor="#FF9800"
+      marginVertical="$3"
+    >
+      <XStack alignItems="center" marginBottom="$3">
+        <Ionicons name="warning" size={20} color="#FF9800" />
+        <Text
+          fontSize={16}
+          fontWeight="600"
+          color="#E65100"
+          fontFamily="Baloo2SemiBold"
+          marginLeft="$2"
+        >
+          Allergen & Additive Alert
+        </Text>
+      </XStack>
+      
+      <Text
+        fontSize={14}
+        color="#BF360C"
+        fontFamily="Baloo2Regular"
+        marginBottom="$3"
+        lineHeight={20}
+      >
+        This product contains the following allergens or additives that may cause reactions in sensitive individuals:
+      </Text>
+      
+      <Stack flexDirection="row" flexWrap="wrap" gap="$2">
+        {warnings.map((warning, index) => (
+          <Stack
+            key={index}
+            backgroundColor="#FF9800"
+            paddingHorizontal="$3"
+            paddingVertical="$1"
+            borderRadius={20}
+          >
+            <Text
+              fontSize={12}
+              fontWeight="600"
+              color="#FFFFFF"
+              fontFamily="Baloo2SemiBold"
+            >
+              {warning}
+            </Text>
+          </Stack>
+        ))}
+      </Stack>
+    </Stack>
+  );
+};
+
+// Product Summary Component
+const ProductSummaryCard = ({ 
+  productName, 
+  summary, 
+  safetyScore 
+}: { 
+  productName: string; 
+  summary: string; 
+  safetyScore: string;
+}) => {
+  return (
+    <Stack
+      backgroundColor="#F8F9FA"
+      borderRadius={16}
+      padding="$4"
+      borderWidth={1}
+      borderColor="rgba(54, 54, 54, 0.1)"
+      marginVertical="$3"
+    >
+      <XStack alignItems="center" marginBottom="$3">
+        <Ionicons name="document-text" size={20} color="#4CAF50" />
+        <Text
+          fontSize={16}
+          fontWeight="600"
+          color="#363636"
+          fontFamily="Baloo2SemiBold"
+          marginLeft="$2"
+        >
+          Product Summary
+        </Text>
+      </XStack>
+      
+      {productName && (
+        <Text
+          fontSize={18}
+          fontWeight="600"
+          color="#363636"
+          fontFamily="Baloo2SemiBold"
+          marginBottom="$2"
+        >
+          {productName}
+        </Text>
+      )}
+      
+      <Stack
+        backgroundColor="#E8F5E8"
+        paddingHorizontal="$3"
+        paddingVertical="$2"
+        borderRadius={8}
+        marginBottom="$3"
+        alignSelf="flex-start"
+      >
+        <Text
+          fontSize={14}
+          fontWeight="600"
+          color="#4CAF50"
+          fontFamily="Baloo2SemiBold"
+        >
+          {safetyScore}
+        </Text>
+      </Stack>
+      
+      <Text
+        fontSize={14}
+        color="#666"
+        fontFamily="Baloo2Regular"
+        lineHeight={20}
+      >
+        {summary}
+      </Text>
+    </Stack>
+  );
+};
+
+// Updated Tab Content Component
 const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisData: AnalysisResult }) => {
   if (activeTab === 'Ingredients') {
     return (
@@ -220,11 +538,10 @@ const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisD
             Safety Overview
           </Text>
           
-          {/* Your existing safety bar component */}
           <SafetyBar analysisData={analysisData} />
         </Stack>
 
-        {/* New Accordion Component */}
+        {/* Accordion Component */}
         <Stack space="$3">
           <Text fontSize={16} fontFamily="Baloo2SemiBold" color="#363636">
             Ingredient Analysis
@@ -232,6 +549,20 @@ const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisD
           
           <IngredientAccordion data={analysisData} />
         </Stack>
+
+        {/* Allergen Warning Section */}
+        {analysisData.allergen_additive_warnings && (
+          <AllergenWarningCard warnings={analysisData.allergen_additive_warnings} />
+        )}
+
+        {/* Product Summary Section */}
+        {analysisData.product_summary && (
+          <ProductSummaryCard 
+            productName={analysisData.product_name}
+            summary={analysisData.product_summary}
+            safetyScore={analysisData.safety_score}
+          />
+        )}
       </Stack>
     );
   }
@@ -405,11 +736,13 @@ export default function ResultScreen() {
                 safety_score: "Analysis Complete",
                 ingredients_summary: analysisContent,
                 ingredient_categories: {
-                  safe: { percentage: "0%", ingredients: [] },
-                  low_risk: { percentage: "0%", ingredients: [] },
-                  not_great: { percentage: "0%", ingredients: [] },
-                  dangerous: { percentage: "0%", ingredients: [] }
-                }
+                  safe: { percentage: "0%", ingredients: [], details: [] },
+                  low_risk: { percentage: "0%", ingredients: [], details: [] },
+                  not_great: { percentage: "0%", ingredients: [], details: [] },
+                  dangerous: { percentage: "0%", ingredients: [], details: [] }
+                },
+                allergen_additive_warnings: [],
+                product_summary: ""
               });
             }
             
@@ -466,11 +799,13 @@ export default function ResultScreen() {
               safety_score: "Analysis Complete",
               ingredients_summary: analysisContent,
               ingredient_categories: {
-                safe: { percentage: "0%", ingredients: [] },
-                low_risk: { percentage: "0%", ingredients: [] },
-                not_great: { percentage: "0%", ingredients: [] },
-                dangerous: { percentage: "0%", ingredients: [] }
-              }
+                safe: { percentage: "0%", ingredients: [], details: [] },
+                low_risk: { percentage: "0%", ingredients: [], details: [] },
+                not_great: { percentage: "0%", ingredients: [], details: [] },
+                dangerous: { percentage: "0%", ingredients: [], details: [] }
+              },
+              allergen_additive_warnings: [],
+              product_summary: ""
             });
           }
           setCitations(scan.analysisResult.citations || []);
