@@ -584,6 +584,150 @@ Focus on realistic, widely available alternatives that specifically address the 
         return jsonify({"error": f"Alternatives error: {str(e)}"}), 500
 
 
+@app.route("/api/chatbot", methods=["POST"])
+def chatbot_query():
+    logger.info("Chatbot query endpoint called")
+    # Check if user is authenticated
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Unauthorized access attempt")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Get JWT token
+    token = auth_header.split(" ")[1]
+
+    try:
+        # Verify token with Firebase
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token["uid"]
+        logger.info(f"User authenticated: {user_id}")
+    except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
+        return jsonify({"error": f"Authentication error: {str(e)}"}), 401
+
+    # Get the user's message from request
+    data = request.get_json()
+    if not data or "message" not in data:
+        logger.warning("No message provided in request")
+        return jsonify({"error": "No message provided"}), 400
+
+    user_message = data["message"]
+    context_data = data.get("context", {})  # Optional context from previous scans
+    
+    logger.info(f"Processing chatbot query: {user_message[:100]}...")
+
+    # Get user's recent scans for context (last 5 scans)
+    user_scans_context = ""
+    try:
+        scans_ref = db.collection("scans").where("user_id", "==", user_id).order_by("timestamp", direction=firestore.Query.DESCENDING).limit(5)
+        scans = scans_ref.get()
+        
+        if scans:
+            recent_products = []
+            for scan in scans:
+                scan_data = scan.to_dict()
+                analysis_result = scan_data.get("analysis_result", {})
+                content = analysis_result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                if content:
+                    # Extract product name from analysis if available
+                    lines = content.split('\n')
+                    for line in lines:
+                        if "product" in line.lower() and ("name" in line.lower() or ":" in line):
+                            recent_products.append(line.strip())
+                            break
+            
+            if recent_products:
+                user_scans_context = f"\n\nUser's Recent Scanned Products (for context):\n" + "\n".join(recent_products[:3])
+    
+    except Exception as e:
+        logger.warning(f"Could not fetch user scan history for context: {str(e)}")
+
+    # Prepare Perplexity API request
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {perplexity_api_key}",
+        "accept": "application/json",
+        "content-type": "application/json",
+    }
+
+    # Enhanced system prompt for Ms. Labelly
+    system_prompt = """You are Ms. Labelly, a friendly and knowledgeable health assistant specializing in food ingredients, nutrition, and wellness. You help users understand:
+
+1. Ingredient safety and health impacts
+2. Nutritional information and advice
+3. Healthier product alternatives
+4. Reading and understanding food labels
+5. General wellness and dietary guidance
+
+Your personality:
+- Warm, encouraging, and supportive
+- Evidence-based but easy to understand
+- Practical and actionable advice
+- Never judgmental, always helpful
+- Use simple, clear language
+
+Guidelines:
+- Always provide evidence-based information
+- Suggest practical alternatives when discussing problematic ingredients
+- Be encouraging about healthy choices
+- If asked about specific medical conditions, remind users to consult healthcare professionals
+- Keep responses conversational but informative
+- Focus on empowering users to make informed decisions
+
+When users ask about ingredients or products, provide:
+- Clear explanations of what ingredients are
+- Health impacts (both positive and negative)
+- Better alternatives when relevant
+- Practical shopping tips"""
+
+    # Construct the user prompt with context
+    user_prompt = f"{user_message}{user_scans_context}"
+
+    payload = {
+        "model": "sonar",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        "web_search_options": {"search_context_size": "medium"},
+        "max_tokens": 1000
+    }
+
+    try:
+        logger.info("Calling Perplexity API for chatbot response")
+        # Call Perplexity API
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        perplexity_data = response.json()
+        logger.info("Perplexity API call for chatbot successful")
+
+        # Extract the response content
+        bot_response = perplexity_data.get("choices", [{}])[0].get("message", {}).get("content", "I'm sorry, I couldn't process your question right now. Please try again.")
+        
+        # Store chat interaction in Firestore
+        logger.info("Storing chat interaction in Firestore")
+        chat_data = {
+            "user_id": user_id,
+            "user_message": user_message,
+            "bot_response": bot_response,
+            "context_used": bool(user_scans_context),
+            "timestamp": firestore.SERVER_TIMESTAMP,
+        }
+
+        db.collection("chat_history").add(chat_data)
+        logger.info("Chat interaction stored successfully")
+
+        return jsonify({
+            "response": bot_response,
+            "citations": perplexity_data.get("citations", [])
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Chatbot error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": f"Chatbot error: {str(e)}"}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     logger.info(f"Starting Flask app on port {port}")

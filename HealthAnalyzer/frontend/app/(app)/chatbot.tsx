@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Keyboard, View } from 'react-native';
+import { TouchableOpacity, ScrollView, TextInput, KeyboardAvoidingView, Platform, Keyboard, View, Alert } from 'react-native';
 import { Stack, Text } from '@tamagui/core';
 import { useRouter } from 'expo-router';
 import { 
@@ -18,6 +18,7 @@ import Animated, {
   SlideInLeft
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { sendChatbotMessage } from '../../lib/api';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -27,6 +28,7 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  citations?: string[];
 }
 
 // Chat Bubble Component
@@ -41,14 +43,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, isUser }) => {
       entering={isUser ? SlideInRight.delay(100) : SlideInLeft.delay(100)}
       style={{
         alignSelf: isUser ? 'flex-end' : 'flex-start',
-        maxWidth: '80%',
+        maxWidth: '85%',
         marginBottom: 12,
         marginHorizontal: 16,
       }}
     >
       <View
         style={{
-          backgroundColor: isUser ? "#363636" : "#D3D3D3",
+          backgroundColor: isUser ? "#363636" : "#F0F0F0",
           borderRadius: 20,
           paddingHorizontal: 16,
           paddingVertical: 12,
@@ -71,6 +73,20 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, isUser }) => {
         >
           {message.text}
         </Text>
+        
+        {/* Citations if available */}
+        {message.citations && message.citations.length > 0 && (
+          <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: isUser ? "#555" : "#E0E0E0" }}>
+            <Text style={{ fontSize: 12, color: isUser ? "#CCC" : "#666", fontFamily: "Baloo2Regular", marginBottom: 4 }}>
+              Sources:
+            </Text>
+            {message.citations.map((citation, index) => (
+              <Text key={index} style={{ fontSize: 11, color: isUser ? "#AAA" : "#888", fontFamily: "Baloo2Regular" }}>
+                • {citation}
+              </Text>
+            ))}
+          </View>
+        )}
       </View>
       <Text
         style={{
@@ -150,7 +166,7 @@ const MsLabellyAvatar = () => {
   );
 };
 
-// Improved Send Button Component
+// Send Button Component
 interface SendButtonProps {
   onPress: () => void;
   disabled: boolean;
@@ -198,36 +214,25 @@ const SendButton: React.FC<SendButtonProps> = ({ onPress, disabled }) => {
       onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={animatedStyle}
-      disabled={disabled}
-    >
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          backgroundColor: disabled ? "#B0B0B0" : "#363636",
-          borderRadius: 22,
+      style={[
+        {
+          width: 36,
+          height: 36,
+          backgroundColor: disabled ? "#D0D0D0" : "#363636",
+          borderRadius: 18,
           alignItems: "center",
           justifyContent: "center",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: disabled ? 0.1 : 0.2,
-          shadowRadius: 4,
-          elevation: disabled ? 2 : 4,
-        }}
-      >
-        <Ionicons 
-          name="send" 
-          size={18} 
-          color="white" 
-          style={{ marginLeft: 2 }}
-        />
-      </View>
+        },
+        animatedStyle
+      ]}
+      disabled={disabled}
+    >
+      <Ionicons name="send" size={18} color="white" />
     </AnimatedTouchableOpacity>
   );
 };
 
-// Quick Reply Button Component
+// Quick Reply Component
 interface QuickReplyProps {
   text: string;
   onPress: () => void;
@@ -271,12 +276,12 @@ const QuickReply: React.FC<QuickReplyProps> = ({ text, onPress }) => {
     >
       <View
         style={{
-          backgroundColor: "#D3D3D3",
+          backgroundColor: "#E8E8E8",
           borderRadius: 20,
           paddingHorizontal: 16,
           paddingVertical: 8,
           borderWidth: 1,
-          borderColor: "#B0B0B0",
+          borderColor: "#D0D0D0",
         }}
       >
         <Text
@@ -309,10 +314,10 @@ export default function ChatbotScreen() {
   ]);
 
   const quickReplies = [
-    "What are the healthiest ingredients?",
+    "What ingredients should I avoid?",
     "How to read nutrition labels?",
-    "Suggest healthy alternatives",
-    "What should I avoid?"
+    "Suggest healthy alternatives for my recent scans",
+    "What are the healthiest cooking oils?"
   ];
 
   useEffect(() => {
@@ -348,31 +353,45 @@ export default function ChatbotScreen() {
     }, 100);
   };
 
-  const simulateBotResponse = (userMessage: string) => {
+  const getBotResponse = async (userMessage: string) => {
     setIsTyping(true);
     
-    setTimeout(() => {
-      const responses = [
-        "That's a great question! Based on current nutritional research, I'd recommend focusing on whole, unprocessed ingredients whenever possible.",
-        "I understand your concern about ingredient safety. Let me help you identify what to look for on nutrition labels.",
-        "Excellent choice in prioritizing your health! Here are some key ingredients that are generally considered beneficial for most people.",
-        "Thank you for asking! Nutrition can be complex, but I'm here to help make it clearer for you.",
-        "That's an important consideration for your health journey. Let me provide you with some evidence-based information."
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    try {
+      const response = await sendChatbotMessage(userMessage);
       
       const botMessage: Message = {
         id: Date.now().toString(),
-        text: randomResponse,
+        text: response.response,
         isUser: false,
         timestamp: new Date(),
+        citations: response.citations || []
       };
       
       setMessages(prev => [...prev, botMessage]);
       setIsTyping(false);
       scrollToBottom();
-    }, 1500);
+    } catch (error) {
+      console.error('Error getting bot response:', error);
+      
+      // Fallback response in case of error
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        text: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment. In the meantime, remember to look for whole, unprocessed ingredients on food labels!",
+        isUser: false,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      setIsTyping(false);
+      scrollToBottom();
+      
+      // Show alert for persistent errors
+      Alert.alert(
+        "Connection Issue",
+        "I'm having trouble connecting to get you the latest information. Please check your internet connection and try again.",
+        [{ text: "OK" }]
+      );
+    }
   };
 
   const handleSendMessage = () => {
@@ -389,7 +408,7 @@ export default function ChatbotScreen() {
     setInputText('');
     scrollToBottom();
     
-    simulateBotResponse(inputText.trim());
+    getBotResponse(inputText.trim());
   };
 
   const handleQuickReply = (text: string) => {
@@ -403,7 +422,7 @@ export default function ChatbotScreen() {
     setMessages(prev => [...prev, userMessage]);
     scrollToBottom();
     
-    simulateBotResponse(text);
+    getBotResponse(text);
   };
 
   return (
@@ -504,7 +523,7 @@ export default function ChatbotScreen() {
                 }}
               >
                 <View style={{
-                  backgroundColor: "#D3D3D3",
+                  backgroundColor: "#F0F0F0",
                   borderRadius: 20,
                   borderTopLeftRadius: 8,
                   paddingHorizontal: 16,
@@ -518,7 +537,7 @@ export default function ChatbotScreen() {
                     fontFamily: "Baloo2Regular",
                     marginRight: 8
                   }}>
-                    Ms. Labelly is typing
+                    Ms. Labelly is thinking
                   </Text>
                   <View style={{ flexDirection: "row" }}>
                     <View style={{ width: 4, height: 4, backgroundColor: "#B0B0B0", borderRadius: 2, marginRight: 4 }} />
@@ -560,7 +579,7 @@ export default function ChatbotScreen() {
             </AnimatedView>
           )}
 
-          {/* Input Area - RESTORED PROPER STRUCTURE */}
+          {/* Input Area */}
           <View style={{
             backgroundColor: "white",
             borderTopWidth: 1,
@@ -611,7 +630,7 @@ export default function ChatbotScreen() {
               />
               <SendButton
                 onPress={handleSendMessage}
-                disabled={inputText.trim() === ''}
+                disabled={inputText.trim() === '' || isTyping}
               />
             </View>
           </View>

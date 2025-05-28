@@ -62,3 +62,36 @@ export const healthCheck = async (): Promise<boolean> => {
     return false;
   }
 };
+
+export const sendChatbotMessage = async (message: string, context?: any) => {
+  try {
+    const token = await getAuthToken();
+    const user = auth.currentUser;
+    
+    if (!user) throw new Error('User not authenticated');
+    
+    const response = await fetch(`${API_BASE_URL}/api/chatbot`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        context: context || {}
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to get chatbot response');
+    }
+    
+    const chatbotData = await response.json();
+    return chatbotData;
+
+  } catch (error) {
+    console.error('Error sending chatbot message:', error);
+    throw error;
+  }
+};
