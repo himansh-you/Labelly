@@ -183,6 +183,8 @@ This project was developed as part of a hackathon submission. Key features are f
 Working demo : https://labelly--40iw2plma1.expo.app/onboarding
 accounts to use : user1@gmail.com(pass: 123456), user2@gmail.com(pass: 123456), deepuser1@gmail.com(pass : 12345678) 
 
+Note : `Some features may not work properly in web build because the build is meant for Android/IOS`
+
 ---
 
 **Made with ❤️ for healthier eating choices**
