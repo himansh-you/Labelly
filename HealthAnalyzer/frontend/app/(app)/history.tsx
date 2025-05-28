@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { TouchableOpacity, ScrollView, Image } from 'react-native';
+import { TouchableOpacity, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
 import { Stack, Text } from '@tamagui/core';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,62 +12,11 @@ import Animated, {
   FadeInDown
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@/context/AuthContext';
+import { getUserHistory, HistoryItem } from '@/lib/firestore';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedStack = Animated.createAnimatedComponent(Stack);
-
-interface HistoryItem {
-  id: string;
-  name: string;
-  composition: string;
-  scanDate: Date;
-  safetyScore: number;
-  imageUri?: string;
-}
-
-// Sample history data - replace with real data later
-const historyData: HistoryItem[] = [
-  {
-    id: '1',
-    name: 'Calcite',
-    composition: 'CaCO3',
-    scanDate: new Date('2024-01-15'),
-    safetyScore: 85,
-    imageUri: undefined
-  },
-  {
-    id: '2',
-    name: 'Gypsum',
-    composition: 'CaSO4·2H2O',
-    scanDate: new Date('2024-01-14'),
-    safetyScore: 92,
-    imageUri: undefined
-  },
-  {
-    id: '3',
-    name: 'Kyanite',
-    composition: 'Al2SiO5',
-    scanDate: new Date('2024-01-13'),
-    safetyScore: 78,
-    imageUri: undefined
-  },
-  {
-    id: '4',
-    name: 'Barite',
-    composition: 'BaSO4',
-    scanDate: new Date('2024-01-12'),
-    safetyScore: 95,
-    imageUri: undefined
-  },
-  {
-    id: '5',
-    name: 'Basalt',
-    composition: 'SiO2',
-    scanDate: new Date('2024-01-11'),
-    safetyScore: 88,
-    imageUri: undefined
-  }
-];
 
 // History Item Card Component
 interface HistoryCardProps {
@@ -112,12 +61,17 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
     return '#F44336'; // Red
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    });
+  const formatDate = (timestamp: any) => {
+    try {
+      const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return 'Unknown date';
+    }
   };
 
   return (
@@ -159,7 +113,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
                   style={{ width: 60, height: 60, borderRadius: 12 }}
                 />
               ) : (
-                <Ionicons name="cube-outline" size={24} color="#363636" />
+                <Ionicons name="nutrition-outline" size={24} color="#363636" />
               )}
             </Stack>
 
@@ -174,15 +128,16 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
                     fontFamily="Baloo2SemiBold"
                     numberOfLines={1}
                   >
-                    {item.name}
+                    {item.productName}
                   </Text>
                   <Text
                     fontSize={14}
                     color="#666"
                     fontFamily="Baloo2Regular"
                     marginTop="$1"
+                    numberOfLines={2}
                   >
-                    Composition: {item.composition}
+                    {item.composition}
                   </Text>
                 </Stack>
 
@@ -200,7 +155,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
                     color="white"
                     fontFamily="Baloo2SemiBold"
                   >
-                    {item.safetyScore}%
+                    {item.safetyScore}
                   </Text>
                 </Stack>
               </Stack>
@@ -211,7 +166,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
                   color="#B0B0B0"
                   fontFamily="Baloo2Regular"
                 >
-                  Scanned: {formatDate(item.scanDate)}
+                  Scanned: {formatDate(item.scanTimestamp)}
                 </Text>
                 
                 <TouchableOpacity>
@@ -229,7 +184,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
                       color="#363636"
                       fontFamily="Baloo2Medium"
                     >
-                      Other Details →
+                      View Details →
                     </Text>
                   </Stack>
                 </TouchableOpacity>
@@ -245,22 +200,85 @@ const HistoryCard: React.FC<HistoryCardProps> = ({ item, onPress, index }) => {
 export default function HistoryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [historyData, setHistoryData] = useState<HistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load user history
+  useEffect(() => {
+    async function loadHistory() {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        setError(null);
+        const history = await getUserHistory(user.uid);
+        setHistoryData(history);
+      } catch (err) {
+        console.error('Error loading history:', err);
+        setError('Failed to load history');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadHistory();
+  }, [user]);
 
   const handleBack = () => {
     router.back();
   };
 
   const handleItemPress = (item: HistoryItem) => {
-    console.log('History item pressed:', item.name);
-    // Navigate to detailed view or re-analyze
-    // router.push(`/(app)/result?itemId=${item.id}`);
+    console.log('History item pressed:', item.productName);
+    // Navigate to result screen with the scan data
+    router.push(`/(app)/result?scanId=${item.id}`);
   };
 
   const filteredHistory = historyData.filter(item =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.composition.toLowerCase().includes(searchQuery.toLowerCase())
+    item.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (item.composition && item.composition.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <>
+        <StatusBar style="dark" backgroundColor="#FDFAF6" />
+        <Stack flex={1} backgroundColor="#FDFAF6" alignItems="center" justifyContent="center">
+          <ActivityIndicator size="large" color="#363636" />
+          <Text marginTop="$4" fontSize={16} color="#666" fontFamily="Baloo2Regular">
+            Loading your history...
+          </Text>
+        </Stack>
+      </>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <>
+        <StatusBar style="dark" backgroundColor="#FDFAF6" />
+        <Stack flex={1} backgroundColor="#FDFAF6" alignItems="center" justifyContent="center" padding="$6">
+          <Ionicons name="alert-circle" size={48} color="#F44336" />
+          <Text marginTop="$4" fontSize={18} color="#F44336" fontFamily="Baloo2SemiBold" textAlign="center">
+            {error}
+          </Text>
+          <TouchableOpacity onPress={() => window.location.reload()} style={{ marginTop: 16 }}>
+            <Text fontSize={14} color="#363636" fontFamily="Baloo2Medium">
+              Tap to retry
+            </Text>
+          </TouchableOpacity>
+        </Stack>
+      </>
+    );
+  }
 
   return (
     <>
@@ -301,7 +319,7 @@ export default function HistoryScreen() {
               fontFamily="Baloo2Regular"
               marginTop="$1"
             >
-              Your scan history and saved items
+              {historyData.length} scanned products
             </Text>
           </Stack>
 
@@ -311,30 +329,29 @@ export default function HistoryScreen() {
             borderRadius="$4"
             paddingHorizontal="$4"
             paddingVertical="$3"
-            flexDirection="row"
-            alignItems="center"
             borderWidth={1}
             borderColor="#E0E0E0"
-            shadowColor="#000"
-            shadowOffset={{ width: 0, height: 1 }}
-            shadowOpacity={0.05}
-            shadowRadius={2}
-            elevation={1}
+            flexDirection="row"
+            alignItems="center"
+            space="$3"
           >
             <Ionicons name="search" size={20} color="#B0B0B0" />
-            <Text
-              flex={1}
-              fontSize={16}
-              fontFamily="Baloo2Regular"
-              color="#B0B0B0"
-              marginLeft="$2"
-            >
-              Search your collections...
-            </Text>
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search products..."
+              style={{
+                flex: 1,
+                fontSize: 16,
+                fontFamily: 'Baloo2Regular',
+                color: '#363636'
+              }}
+              placeholderTextColor="#B0B0B0"
+            />
           </Stack>
         </Stack>
 
-        {/* History List */}
+        {/* Content */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -349,7 +366,7 @@ export default function HistoryScreen() {
                   index={index}
                 />
               ))
-            ) : (
+            ) : historyData.length === 0 ? (
               <Stack alignItems="center" paddingTop="$10">
                 <Stack
                   width={80}
@@ -381,6 +398,28 @@ export default function HistoryScreen() {
                   lineHeight={22}
                 >
                   Start scanning products to build your collection history
+                </Text>
+              </Stack>
+            ) : (
+              <Stack alignItems="center" paddingTop="$10">
+                <Ionicons name="search" size={40} color="#B0B0B0" />
+                <Text
+                  fontSize={18}
+                  color="#666"
+                  fontFamily="Baloo2SemiBold"
+                  textAlign="center"
+                  marginTop="$4"
+                >
+                  No results found
+                </Text>
+                <Text
+                  fontSize={14}
+                  color="#B0B0B0"
+                  fontFamily="Baloo2Regular"
+                  textAlign="center"
+                  marginTop="$2"
+                >
+                  Try a different search term
                 </Text>
               </Stack>
             )}

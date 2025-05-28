@@ -777,10 +777,10 @@ export default function ResultScreen() {
         
         setScanData(scan);
         
-        // Process scan data similar to above
-        if (scan.analysisResult) {
+        // Process scan data with updated field names
+        if (scan.analysis_result) {
           // Try to parse structured data from stored analysis
-          const analysisContent = scan.analysisResult.analysis || '';
+          const analysisContent = scan.analysis_result.choices?.[0]?.message?.content || '';
           try {
             const jsonMatch = analysisContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
@@ -803,7 +803,7 @@ export default function ResultScreen() {
               product_summary: ""
             });
           }
-          setCitations(scan.analysisResult.citations || []);
+          setCitations(scan.analysis_result.citations || []);
         }
         
         // Show the sheet after data is loaded
@@ -893,7 +893,7 @@ export default function ResultScreen() {
   }
 
   // Get the image URI either from params or from the scan data
-  const displayImageUri = imageUri || (scanData?.analysisResult?.imageUrl || null);
+  const displayImageUri = imageUri || (scanData?.analysis_result?.imageUrl || null);
 
   return (
     <>
