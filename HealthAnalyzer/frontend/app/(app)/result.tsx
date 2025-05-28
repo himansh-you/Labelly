@@ -24,6 +24,7 @@ import Animated, {
   runOnJS
 } from 'react-native-reanimated';
 import { IngredientAccordion } from '@/components/IngredientAccordion';
+import { AlternativesView } from '@/components/AlternativesView';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -581,13 +582,7 @@ const TabContent = ({ activeTab, analysisData }: { activeTab: TabType; analysisD
 
   if (activeTab === 'Alternatives') {
     return (
-      <YStack 
-        alignItems="center"
-        justifyContent="center"
-        minHeight={200}
-      >
-        <Text fontSize={16} color="#666" fontFamily="Baloo2Regular">Alternatives coming soon</Text>
-      </YStack>
+      <AlternativesView analysisData={analysisData} />
     );
   }
 

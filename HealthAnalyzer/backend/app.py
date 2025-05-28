@@ -8,6 +8,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
+import json
 
 import traceback
 load_dotenv(dotenv_path="env.example")
@@ -395,6 +396,192 @@ def get_user_scans():
         logger.error(f"Error retrieving scans: {str(e)}")
         logger.error(traceback.format_exc())
         return jsonify({"error": f"Error retrieving scans: {str(e)}"}), 500
+
+
+@app.route("/api/alternatives", methods=["POST"])
+def get_product_alternatives():
+    logger.info("Get product alternatives endpoint called")
+    # Check if user is authenticated
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Unauthorized access attempt")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Get JWT token
+    token = auth_header.split(" ")[1]
+
+    try:
+        # Verify token with Firebase
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token["uid"]
+        logger.info(f"User authenticated: {user_id}")
+    except Exception as e:
+        logger.error(f"Authentication error: {str(e)}")
+        return jsonify({"error": f"Authentication error: {str(e)}"}), 401
+
+    # Get the analysis data from request
+    data = request.get_json()
+    if not data or "analysis_data" not in data:
+        logger.warning("No analysis data provided in request")
+        return jsonify({"error": "No analysis data provided"}), 400
+
+    analysis_data = data["analysis_data"]
+    logger.info(f"Processing alternatives request for product: {analysis_data.get('product_name', 'Unknown')}")
+
+    # Prepare Perplexity API request for alternatives
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {perplexity_api_key}",
+        "accept": "application/json",
+        "content-type": "application/json",
+    }
+
+    prompt = f"""
+Based on the following product analysis, recommend 3-5 healthier alternatives that are available in the market. Focus on products that address the specific health concerns identified in the original product.
+
+Original Product Analysis:
+- Product Name: {analysis_data.get('product_name', 'Unknown Product')}
+- Safety Score: {analysis_data.get('safety_score', 'N/A')}
+- Summary: {analysis_data.get('ingredients_summary', '')}
+- Not Great Ingredients: {', '.join(analysis_data.get('ingredient_categories', {}).get('not_great', {}).get('ingredients', []))}
+- Dangerous Ingredients: {', '.join(analysis_data.get('ingredient_categories', {}).get('dangerous', {}).get('ingredients', []))}
+- Allergen Warnings: {', '.join(analysis_data.get('allergen_additive_warnings', []))}
+
+Your response MUST be a valid JSON object with no additional formatting or markdown. Return ONLY the JSON object.
+
+Use this exact JSON structure:
+
+{{
+  "alternatives": [
+    {{
+      "product_name": "string - Name of the alternative product",
+      "brand": "string - Brand name",
+      "why_better": "string - 2-3 sentence explanation of why this is better",
+      "key_improvements": ["array of 2-4 key improvements over the original"],
+      "safety_score": "string - estimated safety score like 'Safe: 98%'",
+      "price_range": "string - rough price range like '$3-5' or 'Similar pricing'",
+      "availability": "string - where to find it like 'Major grocery stores' or 'Health food stores'",
+      "main_benefits": ["array of 2-3 main health benefits"],
+      "purchase_links": {{
+        "amazon": "https://amazon.com/s?k=product+name+brand",
+        "walmart": "https://walmart.com/search?q=product+name+brand", 
+        "target": "https://target.com/s/product+name",
+        "instacart": "https://instacart.com/store/search/product+name"
+      }}
+    }}
+  ],
+  "general_advice": {{
+    "avoid_ingredients": ["list of ingredients to avoid when shopping"],
+    "look_for_ingredients": ["list of ingredients to look for instead"],
+    "shopping_tips": ["2-3 practical shopping tips"]
+  }}
+}}
+
+Example response:
+
+{{
+  "alternatives": [
+    {{
+      "product_name": "Organic Cocoa Powder (Unsweetened)",
+      "brand": "Navitas Organics",
+      "why_better": "Contains pure cocoa without added sugars, artificial flavors, or preservatives. You can control sweetness by adding natural sweeteners like honey or maple syrup.",
+      "key_improvements": ["No added sugar", "No artificial ingredients", "Higher antioxidant content", "Customizable sweetness"],
+      "safety_score": "Safe: 98%",
+      "price_range": "$8-12",
+      "availability": "Health food stores, online",
+      "main_benefits": ["Rich in antioxidants", "No sugar crash", "Pure nutrition"],
+      "purchase_links": {{
+        "amazon": "https://amazon.com/s?k=navitas+organics+cocoa+powder",
+        "walmart": "https://walmart.com/search?q=organic+cocoa+powder+navitas",
+        "target": "https://target.com/s/organic+cocoa+powder",
+        "instacart": "https://instacart.com/store/search/organic+cocoa+powder"
+      }}
+    }},
+    {{
+      "product_name": "Simply Organic Pure Vanilla Extract",
+      "brand": "Simply Organic", 
+      "why_better": "Made with organic vanilla beans and organic alcohol, no artificial flavors or corn syrup. Perfect for making homemade chocolate drinks.",
+      "key_improvements": ["Organic ingredients", "No artificial flavors", "No corn syrup", "Pure vanilla"],
+      "safety_score": "Safe: 99%",
+      "price_range": "$6-8",
+      "availability": "Grocery stores, health food stores",
+      "main_benefits": ["Pure organic flavor", "No synthetic additives", "Supports organic farming"],
+      "purchase_links": {{
+        "amazon": "https://amazon.com/s?k=simply+organic+vanilla+extract",
+        "walmart": "https://walmart.com/search?q=simply+organic+vanilla",
+        "target": "https://target.com/s/simply+organic+vanilla",
+        "instacart": "https://instacart.com/store/search/simply+organic+vanilla"
+      }}
+    }}
+  ],
+  "general_advice": {{
+    "avoid_ingredients": ["High fructose corn syrup", "Artificial colors", "Excessive added sugar", "Preservatives like BHT/BHA"],
+    "look_for_ingredients": ["Organic cocoa", "Natural sweeteners", "Real vanilla extract", "Minimal ingredient lists"],
+    "shopping_tips": ["Read labels carefully", "Choose organic when possible", "Consider making drinks at home for better control"]
+  }}
+}}
+
+Focus on realistic, widely available alternatives that specifically address the health concerns from the original product analysis. Include realistic search-friendly purchase links for major retailers.
+"""
+
+    payload = {
+        "model": "sonar", 
+        "messages": [
+            {"role": "system", "content": "You are a nutrition expert providing healthier product alternatives. Be practical and specific."},
+            {"role": "user", "content": prompt}
+        ],
+        "web_search_options": {"search_context_size": "high"},
+    }
+
+    try:
+        logger.info("Calling Perplexity API for alternatives")
+        # Call Perplexity API
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        perplexity_data = response.json()
+        logger.info("Perplexity API call for alternatives successful")
+
+        # Extract the alternatives content
+        alternatives_content = perplexity_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        
+        # Parse the JSON response
+        try:
+            # Extract JSON from the response
+            json_match = alternatives_content.strip()
+            if json_match.startswith('```json'):
+                json_match = json_match[7:-3]  # Remove ```json and ```
+            elif json_match.startswith('```'):
+                json_match = json_match[3:-3]  # Remove ``` and ```
+            
+            alternatives_data = json.loads(json_match)
+            
+            # Store alternatives request in Firestore for future reference
+            logger.info("Storing alternatives data in Firestore")
+            alternatives_request_data = {
+                "user_id": user_id,
+                "original_product": analysis_data.get('product_name', 'Unknown'),
+                "alternatives_result": alternatives_data,
+                "original_analysis": analysis_data,
+                "timestamp": firestore.SERVER_TIMESTAMP,
+            }
+
+            db.collection("alternatives_requests").add(alternatives_request_data)
+            logger.info("Alternatives data stored successfully")
+
+            return jsonify({
+                "alternatives": alternatives_data,
+                "citations": perplexity_data.get("citations", [])
+            }), 200
+            
+        except json.JSONDecodeError as parse_error:
+            logger.error(f"Failed to parse alternatives JSON: {parse_error}")
+            logger.error(f"Raw content: {alternatives_content}")
+            return jsonify({"error": "Failed to parse alternatives response"}), 500
+
+    except Exception as e:
+        logger.error(f"Alternatives error: {str(e)}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": f"Alternatives error: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
